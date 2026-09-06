@@ -1,0 +1,100 @@
+ESTRUCTURA DE CARPETAS — sim-reports
+(actualizar el estado [x]/[ ] conforme avance el checklist de la spec 06)
+
+sim-reports/
+├── pom.xml                                             [x] entregado (JUnit 5, maven.compiler.release=21)
+└── src/
+    ├── main/
+    │   └── java/
+    │       └── com/
+    │           └── simreports/
+    │               └── core/                           ← Fase 1: motor de parsing puro (sin Spring)
+    │                   ├── ResultadoParseo.java                        [x] entregado
+    │                   ├── AvisoParseo.java                            [x] entregado
+    │                   ├── TipoAviso.java                              [x] entregado
+    │                   ├── ArchivoFormatoInvalidoException.java        [x] entregado
+    │                   ├── HojaSinTablaException.java                  [x] entregado
+    │                   ├── OrigenParser.java                           [x] entregado
+    │                   ├── HeaderResolver.java                         [x] entregado
+    │                   │
+    │                   ├── plantilla/                   ← punto 3      [x] completado
+    │                   │   ├── PlantillaHeaderResolver.java            [x] entregado
+    │                   │   ├── TipoTablaPlantilla.java                 [x] entregado
+    │                   │   ├── TablaPlantillaResuelta.java             [x] entregado
+    │                   │   ├── TablaPlantillaNoReconocidaException.java [x] entregado
+    │                   │   └── ResolverTablaPlantilla.java             [x] entregado
+    │                   │
+    │                   ├── parsers/                      ← puntos 4-6  [x] completado (Alestra, Telcel, ATT)
+    │                   │   ├── AlestraHeaderResolver.java              [x] entregado
+    │                   │   ├── AlestraParser.java                      [x] entregado
+    │                   │   ├── ParserIccidConsumoGenerico.java         [x] entregado
+    │                   │   ├── TelcelHeaderResolver.java               [x] entregado
+    │                   │   ├── TelcelParser.java                       [x] entregado
+    │                   │   ├── AttHeaderResolver.java                  [x] entregado
+    │                   │   └── AttParser.java                          [x] entregado
+    │                   ├── matching/                     ← punto 7-8  [x] completado (motor de coincidencia + ReglaAmbigua)
+    │                   │   ├── FuenteConsumo.java                      [x] entregado
+    │                   │   ├── Asignacion.java                         [x] entregado
+    │                   │   ├── FilaPlantilla.java                      [x] entregado
+    │                   │   ├── ResultadoFilaPlantilla.java             [x] entregado
+    │                   │   ├── TablaConFilas.java                      [x] entregado
+    │                   │   ├── ResultadoTabla.java                     [x] entregado
+    │                   │   ├── NoEncontrado.java                       [x] entregado
+    │                   │   ├── AdvertenciaConsistencia.java            [x] entregado
+    │                   │   ├── ResultadoMatching.java                  [x] entregado
+    │                   │   ├── CombinadorTelcelAtt.java                [x] entregado
+    │                   │   ├── MotorCoincidencia.java                  [x] entregado
+    │                   │   ├── ContextoFila.java                       [x] entregado
+    │                   │   ├── ResolucionAmbigua.java                  [x] entregado
+    │                   │   ├── ReglaAmbigua.java                       [x] entregado
+    │                   │   └── PrimeraCoincidenciaGanaReglaAmbigua.java [x] entregado
+    │
+    └── test/
+        └── java/
+            └── com/
+                └── simreports/
+                    └── core/
+                        ├── ResultadoParseoTest.java                    [x] entregado
+                        ├── AvisoParseoTest.java                        [x] entregado
+                        ├── HeaderResolverNormalizarTest.java           [x] entregado
+                        └── plantilla/
+                            ├── PlantillaHeaderResolverTest.java        [x] entregado
+                            └── ResolverTablaPlantillaTest.java         [x] entregado
+                        └── parsers/
+                            ├── AlestraHeaderResolverTest.java          [x] entregado
+                            ├── AlestraParserTest.java                  [x] entregado
+                            ├── TelcelHeaderResolverTest.java           [x] entregado
+                            ├── TelcelParserTest.java                   [x] entregado
+                            ├── AttHeaderResolverTest.java              [x] entregado
+                            └── AttParserTest.java                      [x] entregado
+                        └── matching/
+                            ├── CombinadorTelcelAttTest.java            [x] entregado
+                            ├── MotorCoincidenciaTest.java              [x] entregado
+                            └── ReglaAmbiguaTest.java                   [x] entregado
+
+ÚLTIMO RESULTADO CONOCIDO: mvn test → BUILD SUCCESS, 113 tests, 0 fallos (2026-09-06).
+FASE 1 COMPLETA (8/8 puntos del checklist de la spec 06).
+
+NOTAS PARA OPENCODE
+- Crear/completar exactamente esta estructura (carpetas + los archivos
+  que se le vayan entregando en cada turno), sin agregar clases ni
+  carpetas propias por su cuenta.
+- La Fase 1 (motor de parsing puro) está completa con 8/8 puntos del
+  checklist (spec 06). Los siguientes pasos del proyecto son Fase 2
+  (capa Spring Boot) y Fase 3 (Web UI) — ver specs 00 y 04; todavía no
+  hay código entregado para ellas.
+- El paquete base "com.simreports.core" es provisional; si el proyecto
+  ya tiene un groupId/artifactId definido, renombrar con buscar/reemplazar
+  no afecta el diseño de nada de lo ya entregado.
+- pom.xml ya incluye JUnit 5 (test) y Apache POI 5.2.5 (scope normal),
+  con maven.compiler.release=21 — no debería cambiar hasta Fase 2/3.
+
+BOOKKEEPING DE ESTE ARCHIVO Y DE 06-checklist-fase1.md
+- Estos dos archivos SÍ los puede actualizar opencode por su cuenta
+  (marcar [x]/[ ], agregar fecha y resultado de "mvn test") en cuanto un
+  punto del checklist quede probado y en verde — es bookkeeping, no
+  diseño.
+- Todo lo que sea código o test dentro de src/ sigue viniendo siempre de
+  Claude tal cual, sin que opencode complete o corrija nada por su
+  cuenta (regla dura de la spec 05). En caso de duda sobre si algo es
+  "solo bookkeeping", se trata como diseño y se le pregunta a Claude.
