@@ -4,6 +4,13 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.1.1</version>
+        <relativePath/>
+    </parent>
+
     <groupId>com.simreports</groupId>
     <artifactId>sim-reports</artifactId>
     <version>0.1.0-SNAPSHOT</version>
@@ -11,35 +18,37 @@
 
     <name>sim-reports</name>
     <description>
-        Motor de parsing y coincidencia para el reporte mensual de consumo
-        de SIMs (Fase 1 — sin Spring, ver specs 00-06). La capa Spring
-        Boot (Fase 2) se agrega mas adelante, en un pom separado o en
-        este mismo con dependencias adicionales.
+        App de reporte mensual de consumo de SIMs. com.simreports.core.*
+        (Fase 1) es el motor de parsing puro, sin Spring, ya completo (ver
+        spec 06/07). Este pom agrega la capa Spring Boot de Fase 2 (spec
+        04): entidades, repositorios, endpoints REST y persistencia en
+        PostgreSQL.
     </description>
 
     <properties>
+        <java.version>21</java.version>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <junit.version>5.10.2</junit.version>
         <poi.version>5.2.5</poi.version>
     </properties>
 
     <dependencies>
-        <!-- JUnit 5 (Jupiter) — necesario para todos los tests entregados
-             desde el punto 1 del checklist (spec 06). -->
+        <!-- Fase 2: persistencia JPA + Postgres (spec 04). -->
         <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
         </dependency>
 
-        <!-- Apache POI — necesario desde el punto 4 (parser de Alestra):
-             lectura de tablas nativas de Excel (XSSFSheet.getTables()) y
-             de celdas con DataFormatter, ver spec 01/02. Scope normal
-             (no "test"): el motor de parsing en si depende de POI, no
-             solo los tests. -->
+        <!-- Apache POI - motor de parsing de Fase 1 (spec 01/02) y, mas
+             adelante en Fase 2/3, lectura/escritura de la plantilla y del
+             reporte resultado via XSSFSheet.getTables(). Scope normal, no
+             "test": el proyecto entero depende de POI, no solo los tests. -->
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi</artifactId>
@@ -50,16 +59,29 @@
             <artifactId>poi-ooxml</artifactId>
             <version>${poi.version}</version>
         </dependency>
+
+        <!-- Test: JUnit 5 + AssertJ + Mockito (via el starter), mismo
+             framework que ya usaban los 113 tests de Fase 1. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- H2 solo para tests (perfil de test, modo PostgreSQL) - en
+             produccion/desarrollo real siempre se usa Postgres (spec 04),
+             H2 nunca se declara fuera de scope test. -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
         <plugins>
-            <!-- Necesario para que "mvn test" ejecute tests de JUnit 5
-                 (el plugin por defecto de Maven no lo hace sin esto). -->
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.2.5</version>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
         </plugins>
     </build>

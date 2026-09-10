@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: sim-reports
+
+  datasource:
+    url: ${SIMREPORTS_DB_URL:jdbc:postgresql://localhost:5432/sim_reports}
+    username: ${SIMREPORTS_DB_USER:sim_reports}
+    password: ${SIMREPORTS_DB_PASSWORD:sim_reports}
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Decision temporal para Fase 2, todavia sin Flyway/Liquibase:
+      # Hibernate crea/actualiza el esquema a partir de las entidades.
+      # Revisar antes de Fase 4 (empaquetado) -- no es apta para produccion
+      # a largo plazo, pero es proporcional al estado actual del proyecto
+      # (spec 04: decision operativa menor, no bloquea Fase 2).
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
