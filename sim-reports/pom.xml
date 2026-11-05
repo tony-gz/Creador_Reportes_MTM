@@ -30,7 +30,9 @@
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <poi.version>5.2.5</poi.version>
+        <!-- >= 5.4.0 por CVE-2025-31672 (entradas zip duplicadas en OOXML);
+             la app recibe .xlsx subidos por usuarios. -->
+        <poi.version>5.5.1</poi.version>
         <embedded-postgres.version>2.2.2</embedded-postgres.version>
         <!-- Version de PostgreSQL que levantan los tests. Mantenerla igual a
              la mayor (major) del servidor real. -->
