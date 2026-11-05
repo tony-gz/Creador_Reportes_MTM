@@ -63,8 +63,12 @@
   (formato BD_ATT) y no avisa por filas vacías.
 
 ## Decisiones pendientes del usuario
+> Las decisiones ya tomadas se registran en `10-registro-decisiones.md`.
+
 1. **SIMs repetidas** (9 en octubre): ¿qué fila debe llevar el consumo? Hoy
    el reporte manual lo cuenta en todas; la app, solo en la primera.
+   *En curso:* D-001 (entre hojas distintas → se cuenta en las dos) y D-002
+   (dentro de la misma hoja → solo la fila válida) ya registradas.
 2. **Filas con valor manual** (STARLINK, Telcel fuera del archivo): ¿la app
    las deja intactas, o se agrega una fuente "manual"/Starlink?
 3. **Export crudo de Telcel**: compartirlo para probar el parser real y ver

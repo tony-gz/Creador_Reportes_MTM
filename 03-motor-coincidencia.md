@@ -95,8 +95,10 @@ para cada fuente F en {Alestra, Telcel+ATT}:
 ## Reglas ambiguas pendientes de confirmar (interfaz `ReglaAmbigua`)
 > **Datos reales (octubre 2026, spec 09):** sí hay SIMs repetidas en la
 > plantilla — 9 casos en un mes. El reporte manual repite el consumo en cada
-> aparición; la regla default lo asigna solo a la primera. Falta la decisión
-> del usuario sobre cuál es el comportamiento correcto.
+> aparición; la regla default lo asigna solo a la primera. Decisiones del
+> usuario en `10-registro-decisiones.md` (D-001: entre hojas distintas se
+> cuenta en todas; D-002: dentro de la misma hoja, una sola vez, en la fila
+> válida). La regla default actual todavía no implementa D-001.
 
 Dos reglas del motor dependen de datos reales que aún no se han
 confirmado (spec 00, pendientes de Fase 0):

@@ -42,7 +42,8 @@ motor de coincidencia, modelo de datos/API y el flujo de trabajo.
 `06-checklist-fase1.md` y `08-checklist-fase2.md` llevan el progreso.
 `07-api-fase1.md` es el contrato público del motor para la Fase 2.
 `09-analisis-octubre-2026.md` compara el motor contra el reporte real de
-octubre y lista las decisiones pendientes.
+octubre y lista las decisiones pendientes; `10-registro-decisiones.md`
+guarda las decisiones de negocio ya tomadas.
 
 Los archivos reales de clientes van en `archivos/` (raíz), que está en
 `.gitignore`: nunca se suben al repo.
