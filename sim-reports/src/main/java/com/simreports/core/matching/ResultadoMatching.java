@@ -21,18 +21,37 @@ import java.util.Objects;
  *                      duplicados agregados, claves vacías/malformadas),
  *                      para que la UI los muestre junto con los propios
  *                      del motor.
+ * @param totales       totales por fuente (origen, asignado, no
+ *                      encontrado), siempre presentes — uno por cada
+ *                      {@link FuenteConsumo}, en el orden del enum.
  */
 public record ResultadoMatching(
         List<NoEncontrado> noEncontrados,
         List<AdvertenciaConsistencia> advertenciasConsistencia,
-        List<AvisoParseo> avisosParseo) {
+        List<AvisoParseo> avisosParseo,
+        List<TotalesFuente> totales) {
 
     public ResultadoMatching {
         Objects.requireNonNull(noEncontrados, "noEncontrados no puede ser null");
         Objects.requireNonNull(advertenciasConsistencia, "advertenciasConsistencia no puede ser null");
         Objects.requireNonNull(avisosParseo, "avisosParseo no puede ser null");
+        Objects.requireNonNull(totales, "totales no puede ser null");
         noEncontrados = List.copyOf(noEncontrados);
         advertenciasConsistencia = List.copyOf(advertenciasConsistencia);
         avisosParseo = List.copyOf(avisosParseo);
+        totales = List.copyOf(totales);
+    }
+
+    /**
+     * Suma de MB asignados a la plantilla desde todas las fuentes: lo que el
+     * .xlsx escrito debe contener en sus columnas de consumo (ver
+     * {@link VerificadorReporteEscrito}).
+     */
+    public double totalAsignado() {
+        double total = 0.0;
+        for (TotalesFuente t : totales) {
+            total += t.totalAsignado();
+        }
+        return total;
     }
 }

@@ -241,12 +241,21 @@ public class MotorCoincidencia {
     }
 
     /**
-     * Cierra el matching y calcula "no encontrados" y consistencia de
-     * totales. Debe llamarse una sola vez, después de resolver **todas**
+     * Cierra el matching y calcula "no encontrados", totales por fuente y
+     * consistencia de totales.
+     *
+     * <p>Alcance real de la consistencia interna: compara contadores que el
+     * propio motor lleva, así que solo puede saltar si una
+     * {@link ReglaAmbigua} vuelve a escribir el consumo de una clave
+     * repetida (MB duplicados). <b>No</b> verifica lo que quedó escrito en
+     * el .xlsx: para eso está {@link VerificadorReporteEscrito}, que debe
+     * llamarse después de escribir el archivo.</p>
+     *
+     * <p>Debe llamarse una sola vez, después de resolver <b>todas</b>
      * las tablas de la plantilla con {@link #resolverTabla} /
      * {@link #resolverTablas}. Llamarla antes de tiempo produce
      * "no encontrados" incompletos (claves que sí hubieran matcheado en
-     * una hoja aún no procesada).
+     * una hoja aún no procesada).</p>
      */
     public ResultadoMatching finalizar() {
         List<NoEncontrado> noEncontrados = new ArrayList<>();
@@ -267,10 +276,16 @@ public class MotorCoincidencia {
         agregarSiInconsistente(advertencias, FuenteConsumo.TELCEL_ATT,
                 totalOrigenTelcelAtt, totalEscritoTelcelAtt, totalNoEncontradoTelcelAtt);
 
+        List<TotalesFuente> totales = List.of(
+                new TotalesFuente(FuenteConsumo.ALESTRA,
+                        totalOrigenAlestra, totalEscritoAlestra, totalNoEncontradoAlestra),
+                new TotalesFuente(FuenteConsumo.TELCEL_ATT,
+                        totalOrigenTelcelAtt, totalEscritoTelcelAtt, totalNoEncontradoTelcelAtt));
+
         List<AvisoParseo> avisos = new ArrayList<>(avisosHeredados);
         avisos.addAll(avisosGeneradosEnMatching);
 
-        return new ResultadoMatching(noEncontrados, advertencias, avisos);
+        return new ResultadoMatching(noEncontrados, advertencias, avisos, totales);
     }
 
     private static double sumar(Map<String, Double> mapa) {
