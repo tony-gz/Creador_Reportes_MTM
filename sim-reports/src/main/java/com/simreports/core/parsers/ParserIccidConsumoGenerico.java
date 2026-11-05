@@ -46,7 +46,10 @@ import java.util.Optional;
  * primera fila: busca la primera fila, dentro de un límite razonable de
  * filas, que resuelva las dos columnas obligatorias (ICCID y consumo) —
  * ver spec 02, sección "Filas de metadata antes del encabezado real".
- * </p>
+ * Esa fila puede traer <b>varios bloques</b> ICCID + consumo lado a lado
+ * (formato real del ATT consolidado a mano, igual que la hoja BD_ATT del
+ * reporte); se leen todos. Una fila vacía dentro de un bloque se ignora sin
+ * aviso.</p>
  *
  * <p><b>Lectura de .xlsx.</b> Cada celda conserva su texto <i>y</i>, si
  * es numérica, su valor numérico real ({@link Celda}). Así:</p>
@@ -110,60 +113,78 @@ class ParserIccidConsumoGenerico {
 
         List<List<Celda>> filas = pareceXlsx(contenido) ? extraerFilasXlsx(contenido) : extraerFilasCsv(contenido);
         Encabezado encabezado = buscarEncabezado(filas);
+        boolean variosBloques = encabezado.bloques().size() > 1;
 
         Map<String, Double> acumulado = new LinkedHashMap<>();
         List<AvisoParseo> avisos = new ArrayList<>();
 
         for (int r = encabezado.filaIndice() + 1; r < filas.size(); r++) {
             List<Celda> fila = filas.get(r);
-            Celda celdaIccid = obtenerCelda(fila, encabezado.colIccid());
-            Celda celdaConsumo = obtenerCelda(fila, encabezado.colConsumo());
-
-            if (celdaIccid.esNumerica() && !esEnteroExacto(celdaIccid.numero())) {
-                Double consumoPerdido = leerConsumo(celdaConsumo);
-                avisos.add(new AvisoParseo(
-                        TipoAviso.CLAVE_VACIA_O_MALFORMADA,
-                        celdaIccid.texto(),
-                        "Fila " + (r + 1) + " de " + nombreOperador + ": el ICCID está guardado como número "
-                                + "en Excel (se muestra como '" + celdaIccid.texto() + "'). Un número no "
-                                + "conserva todos los dígitos de un ICCID, así que el valor ya viene dañado "
-                                + "en el archivo; se excluyó de la suma"
-                                + (consumoPerdido != null ? " (" + consumoPerdido + " MB)" : "")
-                                + ". Formatea la columna ICCID como Texto en el archivo de origen y vuelve a "
-                                + "pegar los valores."));
-                continue;
+            for (int b = 0; b < encabezado.bloques().size(); b++) {
+                Bloque bloque = encabezado.bloques().get(b);
+                String dondeFila = "Fila " + (r + 1) + (variosBloques ? " (bloque " + (b + 1) + ")" : "")
+                        + " de " + nombreOperador;
+                procesarCelda(obtenerCelda(fila, bloque.colIccid()), obtenerCelda(fila, bloque.colConsumo()),
+                        dondeFila, acumulado, avisos);
             }
-
-            String iccid = celdaIccid.esNumerica()
-                    ? String.valueOf((long) celdaIccid.numero().doubleValue())
-                    : NormalizadorClave.normalizar(celdaIccid.texto());
-            if (iccid.isEmpty()) {
-                avisos.add(new AvisoParseo(
-                        TipoAviso.CLAVE_VACIA_O_MALFORMADA,
-                        "",
-                        "Fila " + (r + 1) + " de " + nombreOperador + ": ICCID vacío o no legible, se "
-                                + "excluyó de la suma."));
-                continue;
-            }
-
-            Double consumo = leerConsumo(celdaConsumo);
-            if (consumo == null) {
-                avisos.add(new AvisoParseo(
-                        TipoAviso.CLAVE_VACIA_O_MALFORMADA,
-                        iccid,
-                        "Fila " + (r + 1) + " de " + nombreOperador + ": el consumo no es un valor numérico "
-                                + "legible, se excluyó de la suma."));
-                continue;
-            }
-
-            // Nota de diseño: a diferencia de Alestra, aquí NO se genera
-            // un aviso de "clave duplicada" cuando el mismo ICCID
-            // aparece varias veces — es la forma normal del archivo
-            // (una fila por fecha, spec 02), no una anomalía a reportar.
-            acumulado.merge(iccid, consumo, Double::sum);
         }
 
         return new ResultadoParseo(acumulado, avisos);
+    }
+
+    private void procesarCelda(Celda celdaIccid, Celda celdaConsumo, String dondeFila,
+                               Map<String, Double> acumulado, List<AvisoParseo> avisos) {
+        // Fila vacía en este bloque (p. ej. un bloque más corto que los
+        // de al lado, o filas en blanco al final): no es un dato, no se
+        // reporta.
+        if (estaVacia(celdaIccid) && estaVacia(celdaConsumo)) {
+            return;
+        }
+
+        if (celdaIccid.esNumerica() && !esEnteroExacto(celdaIccid.numero())) {
+            Double consumoPerdido = leerConsumo(celdaConsumo);
+            avisos.add(new AvisoParseo(
+                    TipoAviso.CLAVE_VACIA_O_MALFORMADA,
+                    celdaIccid.texto(),
+                    dondeFila + ": el ICCID está guardado como número "
+                            + "en Excel (se muestra como '" + celdaIccid.texto() + "'). Un número no "
+                            + "conserva todos los dígitos de un ICCID, así que el valor ya viene dañado "
+                            + "en el archivo; se excluyó de la suma"
+                            + (consumoPerdido != null ? " (" + consumoPerdido + " MB)" : "")
+                            + ". Formatea la columna ICCID como Texto en el archivo de origen y vuelve a "
+                            + "pegar los valores."));
+            return;
+        }
+
+        String iccid = celdaIccid.esNumerica()
+                ? String.valueOf((long) celdaIccid.numero().doubleValue())
+                : NormalizadorClave.normalizar(celdaIccid.texto());
+        if (iccid.isEmpty()) {
+            avisos.add(new AvisoParseo(
+                    TipoAviso.CLAVE_VACIA_O_MALFORMADA,
+                    "",
+                    dondeFila + ": ICCID vacío o no legible, se excluyó de la suma."));
+            return;
+        }
+
+        Double consumo = leerConsumo(celdaConsumo);
+        if (consumo == null) {
+            avisos.add(new AvisoParseo(
+                    TipoAviso.CLAVE_VACIA_O_MALFORMADA,
+                    iccid,
+                    dondeFila + ": el consumo no es un valor numérico legible, se excluyó de la suma."));
+            return;
+        }
+
+        // Nota de diseño: a diferencia de Alestra, aquí NO se genera
+        // un aviso de "clave duplicada" cuando el mismo ICCID
+        // aparece varias veces — es la forma normal del archivo
+        // (una fila por fecha, spec 02), no una anomalía a reportar.
+        acumulado.merge(iccid, consumo, Double::sum);
+    }
+
+    private static boolean estaVacia(Celda celda) {
+        return !celda.esNumerica() && NormalizadorClave.quitarEspaciosExtremos(celda.texto()).isEmpty();
     }
 
     /**
@@ -189,31 +210,75 @@ class ParserIccidConsumoGenerico {
         }
     }
 
-    private record Encabezado(int filaIndice, int colIccid, int colConsumo) {
+    /** Un par de columnas ICCID + consumo dentro de la fila de encabezado. */
+    private record Bloque(int colIccid, int colConsumo) {
     }
 
+    /**
+     * Fila de encabezado y los bloques de columnas que contiene. Un archivo
+     * normal tiene un solo bloque; el ATT consolidado a mano suele traer
+     * varios bloques lado a lado (uno por cliente / export de Jasper, como
+     * la hoja BD_ATT del reporte), cada uno con su propio ICCID y consumo.
+     */
+    private record Encabezado(int filaIndice, List<Bloque> bloques) {
+    }
+
+    /**
+     * Busca, dentro de las primeras filas, la primera que tenga al menos una
+     * columna de ICCID y una de consumo. Cada columna ICCID se empareja con
+     * la columna de consumo más cercana a su derecha antes del siguiente
+     * ICCID. Si solo hay un ICCID y su consumo está a la izquierda, también
+     * vale.
+     */
     private Encabezado buscarEncabezado(List<List<Celda>> filas) {
         int limite = Math.min(LIMITE_FILAS_BUSQUEDA_ENCABEZADO, filas.size());
         for (int r = 0; r < limite; r++) {
             List<Celda> fila = filas.get(r);
-            Integer colIccid = null;
-            Integer colConsumo = null;
+            List<Integer> colsIccid = new ArrayList<>();
+            List<Integer> colsConsumo = new ArrayList<>();
             for (int c = 0; c < fila.size(); c++) {
                 Optional<String> campo = headerResolver.resolver(fila.get(c).texto());
-                if (campo.isPresent() && campo.get().equals(CAMPO_ICCID) && colIccid == null) {
-                    colIccid = c;
+                if (campo.isEmpty()) {
+                    continue;
                 }
-                if (campo.isPresent() && campo.get().equals(CAMPO_CONSUMO) && colConsumo == null) {
-                    colConsumo = c;
+                if (campo.get().equals(CAMPO_ICCID)) {
+                    colsIccid.add(c);
+                } else if (campo.get().equals(CAMPO_CONSUMO)) {
+                    colsConsumo.add(c);
                 }
             }
-            if (colIccid != null && colConsumo != null) {
-                return new Encabezado(r, colIccid, colConsumo);
+            if (colsIccid.isEmpty() || colsConsumo.isEmpty()) {
+                continue;
             }
+            return new Encabezado(r, emparejar(colsIccid, colsConsumo, r));
         }
         throw new ArchivoFormatoInvalidoException(
                 "No se encontró la fila de encabezado con las columnas obligatorias ICCID y de consumo en "
                         + "el archivo de " + nombreOperador + " dentro de las primeras " + limite + " filas.");
+    }
+
+    private List<Bloque> emparejar(List<Integer> colsIccid, List<Integer> colsConsumo, int filaEncabezado) {
+        if (colsIccid.size() == 1) {
+            int iccid = colsIccid.get(0);
+            int consumo = colsConsumo.stream().filter(c -> c > iccid).findFirst().orElse(colsConsumo.get(0));
+            return List.of(new Bloque(iccid, consumo));
+        }
+        List<Bloque> bloques = new ArrayList<>();
+        for (int i = 0; i < colsIccid.size(); i++) {
+            int iccid = colsIccid.get(i);
+            int siguienteIccid = i + 1 < colsIccid.size() ? colsIccid.get(i + 1) : Integer.MAX_VALUE;
+            Optional<Integer> consumo = colsConsumo.stream()
+                    .filter(c -> c > iccid && c < siguienteIccid)
+                    .findFirst();
+            if (consumo.isEmpty()) {
+                throw new ArchivoFormatoInvalidoException(
+                        "En el archivo de " + nombreOperador + " (fila " + (filaEncabezado + 1) + ") la columna "
+                                + "ICCID número " + (i + 1) + " no tiene una columna de consumo a su derecha "
+                                + "antes del siguiente ICCID. Cada bloque debe ser: ICCID y luego su consumo.");
+            }
+            bloques.add(new Bloque(iccid, consumo.get()));
+        }
+        return bloques;
     }
 
     private boolean pareceXlsx(byte[] contenido) {

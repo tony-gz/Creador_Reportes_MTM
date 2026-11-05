@@ -12,6 +12,10 @@
 - [ ] 2. Servicio de plantilla: lectura de tablas nativas con POI
       (`XSSFSheet.getTables()`) -> `ResolverTablaPlantilla` -> persistir
       `mapeoColumnas` en la version activa (cableado pendiente segun spec 07).
+      Requisitos confirmados con el reporte real de octubre (spec 09):
+      ignorar hojas `BD_*`; fallar si una hoja tiene filas de encabezado
+      **fuera** de sus tablas nativas (caso ALSEA bloque 2), no solo si no
+      tiene ninguna tabla.
 - [ ] 3. Endpoints de plantilla (`POST /api/plantilla`, `GET`/`PUT
       /api/plantilla/mapeo`, `GET /api/plantilla/versiones`) + lock
       `SELECT ... FOR UPDATE` sobre la fila activa. La regla "una sola

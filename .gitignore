@@ -4,3 +4,5 @@ target/
 .github/modernize/
 # Capturas e imágenes sueltas que no son parte del proyecto
 WhatsApp Image *
+# Archivos reales de clientes (reportes, BDs de operadores): nunca al repo
+archivos/

@@ -93,6 +93,11 @@ para cada fuente F en {Alestra, Telcel+ATT}:
   motor asignó (ver checklist 08, punto 4).
 
 ## Reglas ambiguas pendientes de confirmar (interfaz `ReglaAmbigua`)
+> **Datos reales (octubre 2026, spec 09):** sí hay SIMs repetidas en la
+> plantilla — 9 casos en un mes. El reporte manual repite el consumo en cada
+> aparición; la regla default lo asigna solo a la primera. Falta la decisión
+> del usuario sobre cuál es el comportamiento correcto.
+
 Dos reglas del motor dependen de datos reales que aún no se han
 confirmado (spec 00, pendientes de Fase 0):
 - Si una línea/ICCID aparece duplicada dentro de la misma hoja de la

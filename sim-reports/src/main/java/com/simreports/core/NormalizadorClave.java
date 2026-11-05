@@ -29,8 +29,12 @@ import java.util.regex.Pattern;
  *   <li>Quitar separadores de formato: cualquier espacio (también los
  *       invisibles), guiones y paréntesis — {@code (55) 1234-5678} y
  *       {@code 55 1234 5678} quedan como {@code 5512345678}.</li>
- *   <li>Pasar a mayúsculas (algunos ICCID terminan en un dígito de relleno
- *       hexadecimal {@code F}).</li>
+ *   <li>Pasar a mayúsculas y quitar la {@code F} de relleno al final de un
+ *       ICCID de 19 dígitos ({@code 8952000000000012300F} →
+ *       {@code 8952000000000012300}). La {@code F} es relleno hexadecimal
+ *       que algunos sistemas agregan para completar 20 posiciones; la
+ *       plantilla real la trae en los ICCID de Telcel y Alestra, pero el
+ *       export de Telcel no — sin quitarla, esas SIMs nunca coincidirían.</li>
  * </ol>
  *
  * <p>Deliberadamente <b>no</b> quita prefijos de país ({@code +52},
@@ -46,6 +50,7 @@ public final class NormalizadorClave {
             Pattern.compile("^[\\s\\p{Z}\\uFEFF\\u200B]+|[\\s\\p{Z}\\uFEFF\\u200B]+$");
     private static final Pattern ENTERO_CON_DECIMAL_CERO = Pattern.compile("^(\\d+)\\.0+$");
     private static final Pattern SEPARADORES = Pattern.compile("[\\s\\p{Z}\\uFEFF\\u200B\\-()]+");
+    private static final Pattern ICCID_CON_F_DE_RELLENO = Pattern.compile("^(\\d{19})F$");
 
     private NormalizadorClave() {
     }
@@ -65,8 +70,8 @@ public final class NormalizadorClave {
             v = quitarEspaciosExtremos(v.substring(1, v.length() - 1));
         }
         v = ENTERO_CON_DECIMAL_CERO.matcher(v).replaceFirst("$1");
-        v = SEPARADORES.matcher(v).replaceAll("");
-        return v.toUpperCase(Locale.ROOT);
+        v = SEPARADORES.matcher(v).replaceAll("").toUpperCase(Locale.ROOT);
+        return ICCID_CON_F_DE_RELLENO.matcher(v).replaceFirst("$1");
     }
 
     /**

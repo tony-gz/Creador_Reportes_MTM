@@ -41,6 +41,10 @@ comportamiento uniforme cuando un encabezado no se reconoce (ver
 - Salida esperada del parser: `Map<Linea, ConsumoMB>` + lista de avisos.
 
 ## Telcel
+- **Pendiente (2026-11-05):** probar con el export crudo real; el archivo
+  analizado en spec 09 era una tabla dinámica ya preparada a mano.
+- Los ICCID de Telcel en la plantilla traen una `F` de relleno al final que
+  el export no trae; `NormalizadorClave` la quita (spec 09).
 - Formato de entrada: exportado de claro-connect, **desglosado por fecha**
   — el mismo ICCID puede aparecer en múltiples filas (una por día).
 - Columnas reales del archivo (confirmadas con archivo de muestra):
@@ -88,6 +92,12 @@ comportamiento uniforme cuando un encabezado no se reconoce (ver
 - Formato de entrada: **un solo archivo**, ya consolidado por el usuario a
   partir de varios exports de Jasper, con exactamente 2 columnas:
   `ICCID, Consumo_MB`.
+- **Confirmado con datos reales (octubre 2026, hoja BD_ATT — spec 09):** el
+  consolidado real trae **varios bloques lado a lado** (uno por cliente),
+  cada uno con `ICCID` y `Uso de ciclo hasta la fecha (MB)` (encabezado de
+  Jasper), una fila de títulos encima, bloques de distinto largo y
+  consumos guardados como texto con separador de miles (`1,170.94`). El
+  parser lee todos los bloques de la fila de encabezado.
 - El parser es **idéntico al de Telcel post-agregación** — no necesita
   lógica de agregación propia, solo leer esas dos columnas.
 - Salida esperada: `Map<ICCID, ConsumoMB>` + lista de avisos (ICCID vacío o

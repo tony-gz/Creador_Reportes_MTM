@@ -30,8 +30,19 @@ class NormalizadorClaveTest {
     }
 
     @Test
-    void pasaAMayusculasElDigitoDeRellenoHexadecimal() {
-        assertEquals("8952020221396597611F", NormalizadorClave.normalizar("8952020221396597611f"));
+    void quitaLaFDeRellenoDeUnIccidDe19Digitos() {
+        // Caso real (octubre 2026): la plantilla trae los ICCID de Telcel con
+        // F final y el export de Telcel no.
+        assertEquals("8952000000000012300", NormalizadorClave.normalizar("8952000000000012300F"));
+        assertEquals("8952000000000012300", NormalizadorClave.normalizar("8952000000000012300f"));
+    }
+
+    @Test
+    void noTocaUnIccidDe20DigitosNiOtrasLetras() {
+        assertEquals("89520700000000000088", NormalizadorClave.normalizar("89520700000000000088"));
+        // 20 dígitos + F no es el patrón de relleno: se deja tal cual.
+        assertEquals("89520700000000000088F", NormalizadorClave.normalizar("89520700000000000088F"));
+        assertEquals("ABC123", NormalizadorClave.normalizar("abc123"));
     }
 
     @Test

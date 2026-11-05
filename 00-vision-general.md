@@ -125,7 +125,10 @@ Los pendientes de esta fase ya se confirmaron con archivos reales
 (1 plantilla de agosto 2026, 1 archivo de Alestra, 1 archivo de Telcel).
 Los hallazgos quedaron incorporados en las specs 01 y 02. Sigue pendiente
 únicamente:
-- [ ] 1 archivo de muestra de ATT ya consolidado.
+- [x] 1 archivo de muestra de ATT ya consolidado (hoja BD_ATT del reporte de
+      octubre 2026, ver spec 09).
+- [ ] Export crudo de Telcel (el analizado en spec 09 era una tabla
+      dinámica ya preparada).
 - [ ] Confirmar si existe algún caso real de router mixto (una SIM por
       línea, otra por ICCID) para ajustar la implementación default de
       `ReglaAmbigua` en spec 03.

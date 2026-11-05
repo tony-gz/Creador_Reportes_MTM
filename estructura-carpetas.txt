@@ -3,6 +3,9 @@ ESTRUCTURA DE CARPETAS — sim-reports
 se lleva en 06-checklist-fase1.md y 08-checklist-fase2.md)
 
 sim-reports/
+├── .mvn/wrapper/maven-wrapper.properties
+├── mvnw
+├── mvnw.cmd
 ├── pom.xml
 └── src/
     ├── main/
@@ -97,7 +100,7 @@ sim-reports/
         └── resources/
             └── application.yml
 
-ÚLTIMO RESULTADO CONOCIDO: mvn test → BUILD SUCCESS, 160 tests, 0 fallos (2026-11-05).
+ÚLTIMO RESULTADO CONOCIDO: ./mvnw test → BUILD SUCCESS, 165 tests, 0 fallos (2026-11-05).
 FASE 1 COMPLETA. FASE 2: punto 1 de 7.
 
 NOTAS PARA OPENCODE

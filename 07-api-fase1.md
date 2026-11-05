@@ -10,7 +10,7 @@
 ## Estado del proyecto (Fase 1 cerrada)
 
 - Checklist spec 06: **8/8 puntos `[x]`**, todos con `mvn test` en verde.
-- Último resultado: `mvn test` → **BUILD SUCCESS, 160 tests, 0 fallos**
+- Último resultado: `mvn test` → **BUILD SUCCESS, 165 tests, 0 fallos**
   (2026-11-05; incluye Fase 2 punto 1 y las correcciones de la revisión).
 - `pom.xml`: `com.simreports:sim-reports:0.1.0-SNAPSHOT`, parent Spring
   Boot 4.1.1 (JUnit/surefire gestionados por el parent),
@@ -75,7 +75,8 @@ static String normalizar(String valor);              // null → ""
 static String quitarEspaciosExtremos(String valor);  // incluye NBSP, BOM, ancho cero
 ```
 Quita espacios (también invisibles), comillas simples envolventes, sufijo
-`.0` de un entero, guiones y paréntesis; pasa a mayúsculas. **No** quita
+`.0` de un entero, guiones y paréntesis; pasa a mayúsculas; quita la `F`
+de relleno de un ICCID de 19 dígitos. **No** quita
 prefijos de país (`+52`, `52`, `521`). Idempotente.
 
 **`HeaderResolver`** (interfaz) — mapea encabezado real → campo lógico.
@@ -147,7 +148,11 @@ instancia por archivo subido.
 - **`TelcelHeaderResolver`**: `ICCID→ICCID`, `USO(MB)→CONSUMO`.
 - **`AttParser`**: idéntico a Telcel post-agregación. Espera 2 columnas
   `ICCID, Consumo_MB`. Mismas reglas de encabezado vacío.
-- **`AttHeaderResolver`**: `ICCID→ICCID`, `CONSUMO_MB→CONSUMO`.
+- **`AttHeaderResolver`**: `ICCID→ICCID`, `CONSUMO_MB→CONSUMO`,
+  `USODECICLOHASTALAFECHA(MB)→CONSUMO` (encabezado real de Jasper).
+- Telcel/ATT leen **varios bloques** ICCID + consumo lado a lado en la fila
+  de encabezado (formato BD_ATT); una fila vacía dentro de un bloque se
+  ignora sin aviso.
 - **`ParserIccidConsumoGenerico`** (package-private, motor compartido de
   Telcel/ATT): no es parte de la API pública; la Fase 2 no lo usa directo.
   Si el `.csv` no es UTF-8 válido, se lee como Windows-1252.
@@ -289,7 +294,7 @@ limita a esta clase).
 
 ## Cómo verificar la Fase 2
 
-- `mvn test` debe seguir en **160 tests, 0 fallos** como base; los tests
+- `./mvnw test` debe seguir en **165 tests, 0 fallos** como base; los tests
   nuevos se suman. No requiere Postgres instalado: los tests de
   persistencia levantan un PostgreSQL embebido (ver README).
 - Los contratos de arriba no cambian: si la Fase 2 necesita algo distinto,
