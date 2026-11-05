@@ -144,11 +144,19 @@ public class MotorCoincidencia {
      * columna {@code SIM} (operador) para decidir dónde buscar — se
      * asume que la misma línea/ICCID nunca aparece en dos operadores a
      * la vez (spec 03).
+     *
+     * <p>La decisión de caer a {@code ICCID} se toma según si la línea
+     * <b>existe</b> en Alestra, no según la {@link Asignacion} devuelta:
+     * cuando la línea está repetida en la plantilla, la {@link ReglaAmbigua}
+     * puede devolver una asignación sin fuente (p. ej. la regla default deja
+     * la fila en 0 MB), y eso no significa que la línea no haya matcheado.
+     * Si se usara {@code tieneMatch()} para decidir, la fila repetida
+     * buscaría su ICCID en Telcel + ATT y podría quedarse con el consumo
+     * de otro operador.</p>
      */
     private Asignacion resolverCascada(String linea, String iccid, String tablaIdentificador) {
-        Asignacion porLinea = resolverContraAlestra(linea, tablaIdentificador);
-        if (porLinea.tieneMatch()) {
-            return porLinea;
+        if (linea != null && alestra.containsKey(linea)) {
+            return resolverContraAlestra(linea, tablaIdentificador);
         }
         return resolverContraTelcelAtt(iccid, tablaIdentificador);
     }

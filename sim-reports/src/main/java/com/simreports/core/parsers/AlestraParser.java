@@ -115,8 +115,12 @@ public class AlestraParser implements OrigenParser {
         Map<String, List<Double>> valoresPorLinea = new LinkedHashMap<>();
         List<AvisoParseo> avisos = new ArrayList<>();
 
+        // El rango de la tabla nativa incluye la fila de totales si la
+        // tabla la tiene activada ("Fila de totales" en Excel); esa fila no
+        // es una línea real y, si se leyera, sumaría el total completo como
+        // si fuera el consumo de una línea llamada "Total".
         int primeraFilaDatos = tabla.getStartRowIndex() + 1;
-        int ultimaFilaDatos = tabla.getEndRowIndex();
+        int ultimaFilaDatos = tabla.getEndRowIndex() - Math.max(tabla.getTotalsRowCount(), 0);
 
         for (int r = primeraFilaDatos; r <= ultimaFilaDatos; r++) {
             Row fila = hoja.getRow(r);

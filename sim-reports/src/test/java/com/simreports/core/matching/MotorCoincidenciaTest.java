@@ -335,6 +335,34 @@ class MotorCoincidenciaTest {
         assertTrue(resultado.avisosParseo().stream().allMatch(a -> a.tipo() == TipoAviso.CLAVE_DUPLICADA));
     }
 
+    @Test
+    void cascadaConLineaRepetidaNoCaeAIccidEnLaSegundaAparicion() {
+        // Regresión: la regla default devuelve una asignación sin fuente
+        // para la 2a aparición; la cascada NO debe interpretarlo como "la
+        // línea no matcheó" y buscar el ICCID en Telcel + ATT.
+        MotorCoincidencia motor = new MotorCoincidencia(
+                parseo(Map.of("5511112222", 100.0)),
+                parseo(Map.of("8952020221396597611", 7.0)),
+                vacio());
+
+        ResultadoTabla resultado = motor.resolverTabla(new TablaConFilas("HOJA1", TipoTablaPlantilla.SIMPLE_CASCADA,
+                List.of(
+                        FilaPlantilla.cascada("5511112222", "8952020221396590000"),
+                        FilaPlantilla.cascada("5511112222", "8952020221396597611"))));
+
+        Asignacion segunda = resultado.filas().get(1).consumo();
+        assertEquals(0.0, segunda.consumoMb());
+        assertNotEquals(FuenteConsumo.TELCEL_ATT, segunda.fuente());
+
+        ResultadoMatching finalResult = motor.finalizar();
+        // El ICCID nunca se consultó, así que queda en "no encontrados".
+        assertTrue(finalResult.noEncontrados().stream().anyMatch(
+                n -> n.fuente() == FuenteConsumo.TELCEL_ATT && n.clave().equals("8952020221396597611")));
+        assertTrue(finalResult.avisosParseo().stream().anyMatch(
+                a -> a.tipo() == TipoAviso.CLAVE_DUPLICADA && a.clave().equals("5511112222")));
+        assertTrue(finalResult.advertenciasConsistencia().isEmpty());
+    }
+
     // ---------- ReglaAmbigua: inyección de una regla personalizada ----------
 
     @Test

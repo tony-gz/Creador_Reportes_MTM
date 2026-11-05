@@ -70,7 +70,7 @@ Campos no nulos. `clave` puede ser cadena vacía (caso ICCID vacío).
 
 ```java
 Optional<String> resolver(String headerReal);
-static String normalizar(String header);   // trim + upper + sin espacios internos; null → ""
+static String normalizar(String header);   // trim + upper + sin espacios internos (incluye NBSP, BOM, ancho cero); null → ""
 ```
 Nunca lanza por encabezado no reconocido: devuelve `Optional.empty()`.
 
@@ -113,6 +113,7 @@ instancia por archivo subido.
   columnas `LINEA` y `Tráfico MB` (sinónimos en `AlestraHeaderResolver`).
   Duplicados de línea → **se suman** + aviso `CLAVE_DUPLICADA`. Línea vacía
   → excluida + aviso. Sin tabla nativa → `ArchivoFormatoInvalidoException`.
+  La **fila de totales** de la tabla nativa (si está activada) se ignora.
 - **`AlestraHeaderResolver`**: `LINEA→LINEA`, `TRÁFICOMB→CONSUMO`,
   `TRAFICOMB→CONSUMO`.
 - **`TelcelParser`**: soporta `.csv` y `.xlsx` detectados **por contenido**
@@ -122,6 +123,15 @@ instancia por archivo subido.
   simples literales `'...'`. Agrega por ICCID. **No** genera
   `CLAVE_DUPLICADA` (una fila por fecha es la forma normal). ICCID vacío →
   excluido + aviso.
+  - `.csv`: lector RFC 4180 (campos entre comillas dobles con comas o saltos
+    de línea dentro, `""` escapada, fin de línea `\n`/`\r\n`/`\r`), descarta
+    el BOM UTF-8 inicial; comilla doble sin cerrar →
+    `ArchivoFormatoInvalidoException`.
+  - `.xlsx`: el consumo se toma del **valor numérico real** de la celda (o
+    del resultado cacheado si es fórmula), no del texto mostrado por
+    `DataFormatter`. Un ICCID guardado como **número** (ya dañado en el
+    archivo: un `double` no conserva 19-20 dígitos) → excluido + aviso
+    `CLAVE_VACIA_O_MALFORMADA` con los MB afectados.
 - **`TelcelHeaderResolver`**: `ICCID→ICCID`, `USO(MB)→CONSUMO`.
 - **`AttParser`**: idéntico a Telcel post-agregación. Espera 2 columnas
   `ICCID, Consumo_MB`. Mismas reglas de encabezado vacío.
@@ -195,7 +205,9 @@ ResultadoMatching finalizar()
    `finalizar()` antes de recorrer todas las tablas da "no encontrados"
    incompletos.
 3. Regla de cascada (spec 03, regla 1): `LINEA` contra Alestra primero; si
-   no hay match, `ICCID` contra Telcel+ATT.
+   la línea **no existe** en Alestra, `ICCID` contra Telcel+ATT. Si la línea
+   existe pero está repetida en la plantilla, la fila la resuelve
+   `ReglaAmbigua` y **no** cae a ICCID (aunque la regla deje 0 MB).
 4. Si una clave matchea más de una vez en la corrida, la 2ª aparición en
    adelante se delega en `ReglaAmbigua` (interfaz inyectable).
 

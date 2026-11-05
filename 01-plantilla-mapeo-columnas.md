@@ -90,8 +90,14 @@ hardcodear `si-hoja-es-BIMBO-entonces-columna-tal`), porque:
 Con la convención fija, el diccionario grande de variantes desaparece. Solo
 queda una normalización mínima antes de comparar:
 ```
-normalizar(header) = header.trim().toUpperCase().replaceAll("\\s+", "")
+normalizar(header) = header.trim().toUpperCase().replaceAll("[\\s\\p{Z}\\uFEFF\\u200B]+", "")
 ```
+**Actualizado (2026-11-05):** además de `\s`, se eliminan los espacios
+invisibles que `\s` de Java no cubre: espacio de no separación (NBSP,
+`U+00A0`) y demás separadores Unicode (`\p{Z}`), BOM (`U+FEFF`, típico
+al inicio de un `.csv` "UTF-8 con BOM") y espacio de ancho cero
+(`U+200B`).
+
 **Actualizado con datos reales de Fase 0:** la versión original de esta
 normalización solo *colapsaba* espacios múltiples a uno (`replaceAll("\\s+",
 " ")`), pero 3 de las 18 hojas reales traen `"CONSUMO (MB)"` con **un solo

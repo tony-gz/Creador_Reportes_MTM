@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -50,6 +51,39 @@ class AlestraParserTest {
             assertTrue(resultado.avisos().stream().anyMatch(
                     a -> a.tipo() == TipoAviso.CLAVE_VACIA_O_MALFORMADA));
         }
+    }
+
+    @Test
+    void ignoraLaFilaDeTotalesDeLaTablaNativa() throws IOException {
+        // Regresión: si la tabla tiene "Fila de totales" activada, esa fila
+        // forma parte del rango de la tabla pero no es una línea real.
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet("Alestra");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("LINEA");
+            header.createCell(1).setCellValue("Tráfico MB");
+            Row r1 = sheet.createRow(1);
+            r1.createCell(0).setCellValue("6641111111");
+            r1.createCell(1).setCellValue(10.0);
+            Row r2 = sheet.createRow(2);
+            r2.createCell(0).setCellValue("6642222222");
+            r2.createCell(1).setCellValue(20.0);
+            Row totales = sheet.createRow(3);
+            totales.createCell(0).setCellValue("Total");
+            totales.createCell(1).setCellValue(30.0);
+
+            XSSFTable tabla = crearTablaNativa(sheet, "Table1", 0, 0, 3, 1);
+            tabla.getCTTable().setTotalsRowCount(1);
+            workbook.write(out);
+        }
+
+        ResultadoParseo resultado = parser.parsear(new ByteArrayInputStream(out.toByteArray()));
+
+        assertEquals(2, resultado.consumos().size());
+        assertEquals(10.0, resultado.consumos().get("6641111111"));
+        assertEquals(20.0, resultado.consumos().get("6642222222"));
+        assertFalse(resultado.consumos().containsKey("Total"));
     }
 
     @Test
@@ -126,8 +160,8 @@ class AlestraParserTest {
      * de encabezado, sin depender de que {@code createTable(...)} los
      * infiera automáticamente en toda versión de POI.
      */
-    private void crearTablaNativa(XSSFSheet sheet, String nombre, int filaInicio, int colInicio,
-                                   int filaFin, int colFin) {
+    private XSSFTable crearTablaNativa(XSSFSheet sheet, String nombre, int filaInicio, int colInicio,
+                                        int filaFin, int colFin) {
         AreaReference area = new AreaReference(
                 new CellReference(filaInicio, colInicio),
                 new CellReference(filaFin, colFin),
@@ -141,5 +175,6 @@ class AlestraParserTest {
             String nombreColumna = headerRow.getCell(colInicio + i).getStringCellValue();
             tabla.getColumns().get(i).setName(nombreColumna);
         }
+        return tabla;
     }
 }

@@ -156,6 +156,17 @@ en su export:
 - El valor de consumo (`ConsumoMB`) sí debe leerse/parsearse como
   numérico, ya que se sumará (`groupBy` en Telcel/Alestra) o se escribirá
   directamente en la plantilla.
+- **Actualizado (2026-11-05):** en `.xlsx`, el consumo se lee del valor
+  numérico real de la celda, **no** con `DataFormatter` (que devuelve el
+  texto mostrado según el formato de celda: con `#,##0.00`, `1234.5678`
+  llegaba como `1234.57` y `0.004` como `0`). Un ICCID guardado como número
+  en Excel ya perdió dígitos en el propio archivo, así que no se intenta
+  "recuperar": la fila se excluye con un aviso que indica los MB afectados
+  y pide formatear la columna como Texto.
+- **Actualizado (2026-11-05):** el `.csv` se lee con un lector RFC 4180
+  (comillas dobles, comas y saltos de línea dentro de un campo) y se
+  descarta el BOM UTF-8 inicial; antes se partía cada línea con
+  `split(",")`.
 
 ## Entradas necesarias para implementar esta spec
 - ✅ Alestra y Telcel confirmados con archivos reales de Fase 0 (hallazgos

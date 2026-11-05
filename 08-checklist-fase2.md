@@ -41,3 +41,31 @@
   guardan como `@Lob` de texto plano (JSON serializado por el servicio,
   no por la entidad) -- no jsonb nativo de Postgres, porque no se
   consulta dentro del JSON, solo se lee/escribe entero.
+## Correcciones al motor de Fase 1 (2026-11-05, antes del punto 2)
+Detectadas en una revisión de código y reproducidas con casos concretos.
+Cada una tiene su test de regresión; los 11 tests nuevos fallan contra el
+código anterior y pasan con el corregido.
+- **Cascada + línea repetida** (`MotorCoincidencia.resolverCascada`): si la
+  línea existía en Alestra pero estaba repetida en la plantilla, la
+  `ReglaAmbigua` default devolvía una asignación sin fuente y la cascada
+  caía a buscar el ICCID en Telcel+ATT, con lo que podía asignar el consumo
+  de otro operador. Ahora se cae a ICCID solo si la línea **no existe** en
+  Alestra.
+- **Fila de totales en Alestra** (`AlestraParser`): se leía como si fuera
+  una línea llamada "Total" con el total completo. Ahora se descuenta
+  `getTotalsRowCount()`.
+- **`.xlsx` de Telcel/ATT** (`ParserIccidConsumoGenerico`): el consumo se
+  leía con `DataFormatter` (valor mostrado, redondeado por el formato de
+  celda; las fórmulas devolvían su texto). Ahora se usa el valor numérico
+  real. Un ICCID guardado como número se excluye con aviso (antes entraba
+  como `8.95202E+18`).
+- **`.csv` de Telcel/ATT**: lector RFC 4180 en vez de `split(",")`, con
+  soporte de comillas dobles y descarte del BOM UTF-8 (antes un CSV de ATT
+  guardado como "UTF-8 con BOM" fallaba con `ArchivoFormatoInvalidoException`).
+- **`HeaderResolver.normalizar`** y la limpieza de valores ahora eliminan
+  NBSP, BOM y espacios de ancho cero.
+
+Tests del motor (`com.simreports.core`): 124/124 en verde (113 + 11
+nuevos). Esta vez no se corrió `mvn test`: no había Maven en la máquina y
+se usó un runner mínimo por reflexión. Con `mvn test` se esperan 134 tests
+(123 + 11).
