@@ -7,22 +7,32 @@
 
 - [x] 1. Entidades JPA `PlantillaConfig` y `ReporteGenerado` + repositorios
       Spring Data (`PlantillaConfigRepository`, `ReporteGeneradoRepository`).
-      **Entregado:** 2026-09-06. **`mvn test`: 123/123 OK** (113 Fase 1 + 10
-      en verde: 8 de Fase 2).
+      **Entregado:** 2026-09-06. **`mvn test`: 123/123 OK** (113 de Fase 1 +
+      10 de Fase 2).
 - [ ] 2. Servicio de plantilla: lectura de tablas nativas con POI
       (`XSSFSheet.getTables()`) -> `ResolverTablaPlantilla` -> persistir
       `mapeoColumnas` en la version activa (cableado pendiente segun spec 07).
 - [ ] 3. Endpoints de plantilla (`POST /api/plantilla`, `GET`/`PUT
       /api/plantilla/mapeo`, `GET /api/plantilla/versiones`) + lock
-      `SELECT ... FOR UPDATE` sobre la fila activa.
+      `SELECT ... FOR UPDATE` sobre la fila activa. La regla "una sola
+      activa" ya la garantiza la base (restricción diferida, se comprueba
+      al commit): el reemplazo debe hacerse en **una sola transacción**
+      (insertar la nueva activa + desactivar la anterior, en cualquier
+      orden).
 - [ ] 4. Servicio de reportes: orquesta los 3 parsers + `MotorCoincidencia`,
-      escribe el .xlsx de salida, guarda `ReporteGenerado`.
+      escribe el .xlsx de salida, guarda `ReporteGenerado`. Después de
+      escribir, **releer el archivo** y pasar la suma de las columnas de
+      consumo a `VerificadorReporteEscrito.verificar(...)`; un descuadre
+      significa que el escritor tiene un bug y el reporte no se entrega
+      como válido.
 - [ ] 5. Endpoints de reportes (`POST /api/reportes`, `GET
       /api/reportes/{id}/descargar`, `GET /api/reportes`).
 - [ ] 6. `@ControllerAdvice` global: traduce `ArchivoFormatoInvalidoException`,
       `HojaSinTablaException`, `TablaPlantillaNoReconocidaException` a HTTP 400.
 - [ ] 7. Config de datasource (perfiles local/servidor) + almacenamiento de
-      archivos en filesystem.
+      archivos en filesystem. (Flyway ya está configurado; falta la
+      carpeta base de archivos y decidir perfiles vs. variables de
+      entorno.)
 
 ## Notas de esta entrega (punto 1)
 - Spring Boot **4.1.1** como parent (la `4.1.2` original no existe en
@@ -35,12 +45,14 @@
   pero sin riesgo de import roto que opencode no pueda arreglar (spec 05).
   Revisar si vale la pena volver a `@DataJpaTest` cuando lleguen los
   controllers (punto 3).
-- `spring.jpa.hibernate.ddl-auto=update` es temporal (sin Flyway/Liquibase
-  todavia) -- revisar antes de Fase 4.
-- `mapeoColumnas`, `archivosEntrada`, `lineasNoEncontradas` y `avisos` se
-  guardan como `@Lob` de texto plano (JSON serializado por el servicio,
-  no por la entidad) -- no jsonb nativo de Postgres, porque no se
-  consulta dentro del JSON, solo se lee/escribe entero.
+- ~~`spring.jpa.hibernate.ddl-auto=update` es temporal~~ — reemplazado el
+  2026-11-05 por Flyway + `ddl-auto=validate` (ver abajo).
+- `mapeoColumnas`, `archivosEntrada`, `lineasNoEncontradas` y `avisos` son
+  JSON serializado por el servicio, no por la entidad — no jsonb nativo de
+  Postgres, porque no se consulta dentro del JSON. ~~Se guardaban como
+  `@Lob`~~: desde el 2026-11-05 son columnas `text` (en Postgres, `@Lob
+  String` se mapeaba a `oid`).
+
 ## Correcciones al motor de Fase 1 (2026-11-05, antes del punto 2)
 Detectadas en una revisión de código y reproducidas con casos concretos.
 Cada una tiene su test de regresión; los 11 tests nuevos fallan contra el
@@ -65,7 +77,28 @@ código anterior y pasan con el corregido.
 - **`HeaderResolver.normalizar`** y la limpieza de valores ahora eliminan
   NBSP, BOM y espacios de ancho cero.
 
-Tests del motor (`com.simreports.core`): 124/124 en verde (113 + 11
-nuevos). Esta vez no se corrió `mvn test`: no había Maven en la máquina y
-se usó un runner mínimo por reflexión. Con `mvn test` se esperan 134 tests
-(123 + 11).
+Resultado: `mvn test` 134/134 OK (123 + 11 nuevos).
+
+## Resto de mejoras de la revisión (2026-11-05)
+- **`NormalizadorClave`** (core): una sola limpieza de línea/ICCID para los
+  parsers y para las claves de la plantilla (el motor la aplica a
+  `FilaPlantilla`). No quita prefijos de país: **pendiente de confirmar con
+  datos reales** si la plantilla y Alestra usan la misma longitud de línea.
+- **`LectorNumero`**: consumos como texto con coma o punto decimal y
+  separador de miles; rechaza `NaN`/`Infinity`/`10d`.
+- CSV no UTF-8 → se lee como Windows-1252.
+- "No encontrados" en orden estable (fuente, clave).
+- **Flyway** (`db/migration/V1__esquema_inicial.sql`) + `ddl-auto=validate`.
+  Un cambio de esquema = una migración nueva `V<n>__*.sql`; nunca editar
+  una ya aplicada.
+- Columnas JSON como `text` (antes `@Lob` → `oid` en Postgres).
+- Restricción `ex_plantilla_config_una_activa`: exclusión parcial
+  **diferida** — solo una plantilla activa, comprobada al commit.
+- Tests de persistencia contra **PostgreSQL 18 real embebido** (zonky
+  `embedded-postgres`, sin Docker) en vez de H2. La primera ejecución
+  descarga los binarios (~unos MB) desde Maven Central.
+- `ResultadoMatching.totales()` + **`VerificadorReporteEscrito`**
+  (ver punto 4).
+- Apache POI 5.2.5 → **5.5.1** (CVE-2025-31672).
+
+Resultado: `mvn test` **160/160 OK**.

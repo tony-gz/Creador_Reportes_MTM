@@ -163,6 +163,12 @@ en su export:
   en Excel ya perdió dígitos en el propio archivo, así que no se intenta
   "recuperar": la fila se excluye con un aviso que indica los MB afectados
   y pide formatear la columna como Texto.
+- **Actualizado (2026-11-05):** la limpieza de claves (línea/ICCID) vive
+  en una sola clase, `NormalizadorClave`, que usan los tres parsers y el
+  motor sobre las claves de la plantilla: espacios (incluidos invisibles),
+  comillas simples, sufijo `.0`, guiones y paréntesis. No quita prefijos de
+  país. Los consumos escritos como texto los lee `LectorNumero` (coma o
+  punto decimal, separador de miles).
 - **Actualizado (2026-11-05):** el `.csv` se lee con un lector RFC 4180
   (comillas dobles, comas y saltos de línea dentro de un campo) y se
   descarta el BOM UTF-8 inicial; antes se partía cada línea con

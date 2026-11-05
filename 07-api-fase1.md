@@ -10,11 +10,12 @@
 ## Estado del proyecto (Fase 1 cerrada)
 
 - Checklist spec 06: **8/8 puntos `[x]`**, todos con `mvn test` en verde.
-- Último resultado: `mvn test` → **BUILD SUCCESS, 113 tests, 0 fallos**
-  (2026-09-06).
-- `pom.xml`: `com.simreports:sim-reports:0.1.0-SNAPSHOT`,
-  `maven.compiler.release=21`, JUnit 5.10.2 (test) + surefire 3.2.5,
-  Apache POI 5.2.5 (scope normal: `poi` + `poi-ooxml`).
+- Último resultado: `mvn test` → **BUILD SUCCESS, 160 tests, 0 fallos**
+  (2026-11-05; incluye Fase 2 punto 1 y las correcciones de la revisión).
+- `pom.xml`: `com.simreports:sim-reports:0.1.0-SNAPSHOT`, parent Spring
+  Boot 4.1.1 (JUnit/surefire gestionados por el parent),
+  `maven.compiler.release=21`, Apache POI 5.5.1 (scope normal: `poi` +
+  `poi-ooxml`; >= 5.4.0 por CVE-2025-31672).
 - Paquete base: `com.simreports.core`. **Sin Spring, sin HTTP** en Fase 1:
   los parsers y el motor son código puro y así se testean (JUnit puro).
 
@@ -65,6 +66,17 @@ Campos no nulos. `clave` puede ser cadena vacía (caso ICCID vacío).
 > Para Fase 2: **estas 3 excepciones son las que traduce el
 > `@ControllerAdvice`** (spec 04) a respuestas HTTP claras (p. ej. 400),
 > en vez de dejar pasar excepciones crudas de Apache POI.
+
+**`NormalizadorClave`** — clase final, única forma canónica de una clave
+(línea o ICCID). La usan los parsers al construir sus `Map` y el motor
+sobre las claves de `FilaPlantilla`.
+```java
+static String normalizar(String valor);              // null → ""
+static String quitarEspaciosExtremos(String valor);  // incluye NBSP, BOM, ancho cero
+```
+Quita espacios (también invisibles), comillas simples envolventes, sufijo
+`.0` de un entero, guiones y paréntesis; pasa a mayúsculas. **No** quita
+prefijos de país (`+52`, `52`, `521`). Idempotente.
 
 **`HeaderResolver`** (interfaz) — mapea encabezado real → campo lógico.
 
@@ -138,6 +150,11 @@ instancia por archivo subido.
 - **`AttHeaderResolver`**: `ICCID→ICCID`, `CONSUMO_MB→CONSUMO`.
 - **`ParserIccidConsumoGenerico`** (package-private, motor compartido de
   Telcel/ATT): no es parte de la API pública; la Fase 2 no lo usa directo.
+  Si el `.csv` no es UTF-8 válido, se lee como Windows-1252.
+- **`LectorNumero`** (package-private): consumo escrito como texto en los
+  tres parsers. Acepta `1234.5`, `1,234.5`, `1.234,5`, `1,5`, `0,004`; el
+  caso ambiguo `1,234` se lee como mil doscientos treinta y cuatro;
+  `NaN`/`Infinity`/`10d` → fila excluida + aviso.
 
 ### com.simreports.core.matching
 
@@ -155,8 +172,9 @@ sola fuente lógica).
 — record. Campos que no aplican o celdas vacías = `null` (nunca `""`).
 Factories estáticos: `simplePorLinea(linea)`, `simplePorIccid(iccid)`,
 `cascada(linea, iccid)`, `dualSim(linea1, linea2)` (estos dos NO usan
-`linea`/`iccid`). Valores ya normalizados a texto (sin `.0` ni notación
-científica); el motor compara igualdad exacta.
+`linea`/`iccid`). Valores como texto (nunca un `double` en notación
+científica); el motor les aplica `NormalizadorClave` antes de buscar, y una
+clave vacía tras normalizar cuenta como `null`.
 
 **`ResultadoFilaPlantilla`** — `record (Asignacion consumo, Asignacion consumo1, Asignacion consumo2, Double consumoTotal)`.
 - `simple(Asignacion)` → llena `consumo` (CONSUMO(MB)); resto `null`.
@@ -175,10 +193,28 @@ decide matching). Lista inmutable.
 **`AdvertenciaConsistencia(FuenteConsumo fuente, double totalOrigen, double totalAsignado, double totalNoEncontrado)`**
 — record; `double diferencia()` = `totalOrigen - (totalAsignado + totalNoEncontrado)`.
 
-**`ResultadoMatching`** — `record (List<NoEncontrado> noEncontrados, List<AdvertenciaConsistencia> advertenciasConsistencia, List<AvisoParseo> avisosParseo)`.
-Listas inmutables. `avisosParseo` = heredados de los parsers + generados
-por el motor (ReglaAmbigua). No incluye los valores a escribir (eso va por
-`ResultadoTabla`).
+**`ResultadoMatching`** — `record (List<NoEncontrado> noEncontrados, List<AdvertenciaConsistencia> advertenciasConsistencia, List<AvisoParseo> avisosParseo, List<TotalesFuente> totales)`.
+Listas inmutables. `noEncontrados` ordenados por fuente y clave.
+`avisosParseo` = heredados de los parsers + generados por el motor
+(ReglaAmbigua). `totales` = uno por fuente (origen, asignado, no
+encontrado). `double totalAsignado()` = suma de lo asignado en todas las
+fuentes. No incluye los valores a escribir (eso va por `ResultadoTabla`).
+
+**`TotalesFuente(FuenteConsumo fuente, double totalOrigen, double totalAsignado, double totalNoEncontrado)`** — record.
+
+**`VerificadorReporteEscrito`** — clase final, verificación independiente
+del `.xlsx` ya escrito:
+```java
+static Optional<DescuadreReporteEscrito> verificar(ResultadoMatching resultado, double totalLeidoDelReporte);
+```
+`totalLeidoDelReporte` = suma de las celdas `CONSUMO(MB)`, `CONSUMO(MB)_1`
+y `CONSUMO(MB)_2` (no `CONSUMO_TOTAL`) releídas del archivo escrito.
+Descuadre > 0.01 MB → bug del escritor; el reporte no debe darse por
+válido. **Importante:** la consistencia interna de `finalizar()` cuadra por
+construcción con la regla default; esta es la comprobación que sí detecta
+errores de escritura.
+
+**`DescuadreReporteEscrito(double totalEsperado, double totalLeido)`** — record; `diferencia()`.
 
 **`CombinadorTelcelAtt`** — clase final con `private` ctor.
 ```java
@@ -236,8 +272,10 @@ limita a esta clase).
 - La Fase 2 **no** decide formato por nombre de archivo: los parsers ya
   detectan por contenido. Guardar el `.xlsx` subido con nombre propio y
   pasarlo como `InputStream`/bytes.
-- El motor exige **texto normalizado** en `FilaPlantilla` (spec 01:
-  `DataFormatter`, sin `.0` ni notación científica). La lectura de las
+- `FilaPlantilla` recibe **texto** (spec 01: nunca un `double` en
+  notación científica; un número entero se pasa sin decimales). El motor
+  aplica `NormalizadorClave`; el lector de la plantilla no debe limpiar
+  por su cuenta con otras reglas. La lectura de las
   celdas de la plantilla con POI se conecta en Fase 2/3: por cada tabla
   nativa (18 hojas) → encabezados reales → `ResolverTablaPlantilla` →
   filas → `TablaConFilas`.
@@ -251,8 +289,9 @@ limita a esta clase).
 
 ## Cómo verificar la Fase 2
 
-- `mvn test` debe seguir en **113 tests, 0 fallos** con la Fase 1 intacta;
-  los tests de Fase 2 se suman a esa base.
+- `mvn test` debe seguir en **160 tests, 0 fallos** como base; los tests
+  nuevos se suman. No requiere Postgres instalado: los tests de
+  persistencia levantan un PostgreSQL embebido (ver README).
 - Los contratos de arriba no cambian: si la Fase 2 necesita algo distinto,
   hay que discutirlo primero (spec 05: el código nuevo siempre lo escribe
   Claude).

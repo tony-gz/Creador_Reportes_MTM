@@ -1,93 +1,118 @@
 ESTRUCTURA DE CARPETAS — sim-reports
-(actualizar el estado [x]/[ ] conforme avance el checklist de la spec 06)
+(generada a partir de los archivos del repositorio; el progreso por punto
+se lleva en 06-checklist-fase1.md y 08-checklist-fase2.md)
 
 sim-reports/
-├── pom.xml                                             [x] entregado (JUnit 5, maven.compiler.release=21)
+├── pom.xml
 └── src/
     ├── main/
-    │   └── java/
-    │       └── com/
-    │           └── simreports/
-    │               └── core/                           ← Fase 1: motor de parsing puro (sin Spring)
-    │                   ├── ResultadoParseo.java                        [x] entregado
-    │                   ├── AvisoParseo.java                            [x] entregado
-    │                   ├── TipoAviso.java                              [x] entregado
-    │                   ├── ArchivoFormatoInvalidoException.java        [x] entregado
-    │                   ├── HojaSinTablaException.java                  [x] entregado
-    │                   ├── OrigenParser.java                           [x] entregado
-    │                   ├── HeaderResolver.java                         [x] entregado
-    │                   │
-    │                   ├── plantilla/                   ← punto 3      [x] completado
-    │                   │   ├── PlantillaHeaderResolver.java            [x] entregado
-    │                   │   ├── TipoTablaPlantilla.java                 [x] entregado
-    │                   │   ├── TablaPlantillaResuelta.java             [x] entregado
-    │                   │   ├── TablaPlantillaNoReconocidaException.java [x] entregado
-    │                   │   └── ResolverTablaPlantilla.java             [x] entregado
-    │                   │
-    │                   ├── parsers/                      ← puntos 4-6  [x] completado (Alestra, Telcel, ATT)
-    │                   │   ├── AlestraHeaderResolver.java              [x] entregado
-    │                   │   ├── AlestraParser.java                      [x] entregado
-    │                   │   ├── ParserIccidConsumoGenerico.java         [x] entregado
-    │                   │   ├── TelcelHeaderResolver.java               [x] entregado
-    │                   │   ├── TelcelParser.java                       [x] entregado
-    │                   │   ├── AttHeaderResolver.java                  [x] entregado
-    │                   │   └── AttParser.java                          [x] entregado
-    │                   ├── matching/                     ← punto 7-8  [x] completado (motor de coincidencia + ReglaAmbigua)
-    │                   │   ├── FuenteConsumo.java                      [x] entregado
-    │                   │   ├── Asignacion.java                         [x] entregado
-    │                   │   ├── FilaPlantilla.java                      [x] entregado
-    │                   │   ├── ResultadoFilaPlantilla.java             [x] entregado
-    │                   │   ├── TablaConFilas.java                      [x] entregado
-    │                   │   ├── ResultadoTabla.java                     [x] entregado
-    │                   │   ├── NoEncontrado.java                       [x] entregado
-    │                   │   ├── AdvertenciaConsistencia.java            [x] entregado
-    │                   │   ├── ResultadoMatching.java                  [x] entregado
-    │                   │   ├── CombinadorTelcelAtt.java                [x] entregado
-    │                   │   ├── MotorCoincidencia.java                  [x] entregado
-    │                   │   ├── ContextoFila.java                       [x] entregado
-    │                   │   ├── ResolucionAmbigua.java                  [x] entregado
-    │                   │   ├── ReglaAmbigua.java                       [x] entregado
-    │                   │   └── PrimeraCoincidenciaGanaReglaAmbigua.java [x] entregado
-    │
+    │   ├── java/
+    │   │   └── com/
+    │   │       └── simreports/
+    │   │           ├── SimReportsApplication.java
+    │   │           ├── core/
+    │   │           │   ├── ArchivoFormatoInvalidoException.java
+    │   │           │   ├── AvisoParseo.java
+    │   │           │   ├── HeaderResolver.java
+    │   │           │   ├── HojaSinTablaException.java
+    │   │           │   ├── NormalizadorClave.java
+    │   │           │   ├── OrigenParser.java
+    │   │           │   ├── ResultadoParseo.java
+    │   │           │   ├── TipoAviso.java
+    │   │           │   ├── matching/
+    │   │           │   │   ├── AdvertenciaConsistencia.java
+    │   │           │   │   ├── Asignacion.java
+    │   │           │   │   ├── CombinadorTelcelAtt.java
+    │   │           │   │   ├── ContextoFila.java
+    │   │           │   │   ├── DescuadreReporteEscrito.java
+    │   │           │   │   ├── FilaPlantilla.java
+    │   │           │   │   ├── FuenteConsumo.java
+    │   │           │   │   ├── MotorCoincidencia.java
+    │   │           │   │   ├── NoEncontrado.java
+    │   │           │   │   ├── PrimeraCoincidenciaGanaReglaAmbigua.java
+    │   │           │   │   ├── ReglaAmbigua.java
+    │   │           │   │   ├── ResolucionAmbigua.java
+    │   │           │   │   ├── ResultadoFilaPlantilla.java
+    │   │           │   │   ├── ResultadoMatching.java
+    │   │           │   │   ├── ResultadoTabla.java
+    │   │           │   │   ├── TablaConFilas.java
+    │   │           │   │   ├── TotalesFuente.java
+    │   │           │   │   └── VerificadorReporteEscrito.java
+    │   │           │   ├── parsers/
+    │   │           │   │   ├── AlestraHeaderResolver.java
+    │   │           │   │   ├── AlestraParser.java
+    │   │           │   │   ├── AttHeaderResolver.java
+    │   │           │   │   ├── AttParser.java
+    │   │           │   │   ├── LectorNumero.java
+    │   │           │   │   ├── ParserIccidConsumoGenerico.java
+    │   │           │   │   ├── TelcelHeaderResolver.java
+    │   │           │   │   └── TelcelParser.java
+    │   │           │   └── plantilla/
+    │   │           │       ├── PlantillaHeaderResolver.java
+    │   │           │       ├── ResolverTablaPlantilla.java
+    │   │           │       ├── TablaPlantillaNoReconocidaException.java
+    │   │           │       ├── TablaPlantillaResuelta.java
+    │   │           │       └── TipoTablaPlantilla.java
+    │   │           ├── plantilla/
+    │   │           │   ├── PlantillaConfig.java
+    │   │           │   └── PlantillaConfigRepository.java
+    │   │           └── reportes/
+    │   │               ├── ReporteGenerado.java
+    │   │               └── ReporteGeneradoRepository.java
+    │   └── resources/
+    │       ├── application.yml
+    │       └── db/
+    │           └── migration/
+    │               └── V1__esquema_inicial.sql
     └── test/
-        └── java/
-            └── com/
-                └── simreports/
-                    └── core/
-                        ├── ResultadoParseoTest.java                    [x] entregado
-                        ├── AvisoParseoTest.java                        [x] entregado
-                        ├── HeaderResolverNormalizarTest.java           [x] entregado
-                        └── plantilla/
-                            ├── PlantillaHeaderResolverTest.java        [x] entregado
-                            └── ResolverTablaPlantillaTest.java         [x] entregado
-                        └── parsers/
-                            ├── AlestraHeaderResolverTest.java          [x] entregado
-                            ├── AlestraParserTest.java                  [x] entregado
-                            ├── TelcelHeaderResolverTest.java           [x] entregado
-                            ├── TelcelParserTest.java                   [x] entregado
-                            ├── AttHeaderResolverTest.java              [x] entregado
-                            └── AttParserTest.java                      [x] entregado
-                        └── matching/
-                            ├── CombinadorTelcelAttTest.java            [x] entregado
-                            ├── MotorCoincidenciaTest.java              [x] entregado
-                            └── ReglaAmbiguaTest.java                   [x] entregado
+        ├── java/
+        │   └── com/
+        │       └── simreports/
+        │           ├── PostgresEmbebido.java
+        │           ├── core/
+        │           │   ├── AvisoParseoTest.java
+        │           │   ├── HeaderResolverNormalizarTest.java
+        │           │   ├── NormalizadorClaveTest.java
+        │           │   ├── ResultadoParseoTest.java
+        │           │   ├── matching/
+        │           │   │   ├── CombinadorTelcelAttTest.java
+        │           │   │   ├── MotorCoincidenciaTest.java
+        │           │   │   ├── ReglaAmbiguaTest.java
+        │           │   │   └── VerificadorReporteEscritoTest.java
+        │           │   ├── parsers/
+        │           │   │   ├── AlestraHeaderResolverTest.java
+        │           │   │   ├── AlestraParserTest.java
+        │           │   │   ├── AttHeaderResolverTest.java
+        │           │   │   ├── AttParserTest.java
+        │           │   │   ├── LectorNumeroTest.java
+        │           │   │   ├── TelcelHeaderResolverTest.java
+        │           │   │   └── TelcelParserTest.java
+        │           │   └── plantilla/
+        │           │       ├── PlantillaHeaderResolverTest.java
+        │           │       └── ResolverTablaPlantillaTest.java
+        │           ├── plantilla/
+        │           │   └── PlantillaConfigRepositoryTest.java
+        │           └── reportes/
+        │               └── ReporteGeneradoRepositoryTest.java
+        └── resources/
+            └── application.yml
 
-ÚLTIMO RESULTADO CONOCIDO: mvn test → BUILD SUCCESS, 113 tests, 0 fallos (2026-09-06).
-FASE 1 COMPLETA (8/8 puntos del checklist de la spec 06).
+ÚLTIMO RESULTADO CONOCIDO: mvn test → BUILD SUCCESS, 160 tests, 0 fallos (2026-11-05).
+FASE 1 COMPLETA. FASE 2: punto 1 de 7.
 
 NOTAS PARA OPENCODE
 - Crear/completar exactamente esta estructura (carpetas + los archivos
   que se le vayan entregando en cada turno), sin agregar clases ni
   carpetas propias por su cuenta.
-- La Fase 1 (motor de parsing puro) está completa con 8/8 puntos del
-  checklist (spec 06). Los siguientes pasos del proyecto son Fase 2
-  (capa Spring Boot) y Fase 3 (Web UI) — ver specs 00 y 04; todavía no
-  hay código entregado para ellas.
+- La Fase 1 (motor de parsing puro) está completa (spec 06). La Fase 2
+  (capa Spring Boot) va en el punto 1 de 7 (spec 08); la Fase 3 (Web UI)
+  no ha empezado.
 - El paquete base "com.simreports.core" es provisional; si el proyecto
   ya tiene un groupId/artifactId definido, renombrar con buscar/reemplazar
   no afecta el diseño de nada de lo ya entregado.
-- pom.xml ya incluye JUnit 5 (test) y Apache POI 5.2.5 (scope normal),
-  con maven.compiler.release=21 — no debería cambiar hasta Fase 2/3.
+- pom.xml: parent Spring Boot 4.1.1, maven.compiler.release=21, Apache
+  POI 5.5.1, JPA + PostgreSQL + Flyway; en test, PostgreSQL embebido
+  (zonky) en lugar de H2.
 
 BOOKKEEPING DE ESTE ARCHIVO Y DE 06-checklist-fase1.md
 - Estos dos archivos SÍ los puede actualizar opencode por su cuenta

@@ -82,6 +82,15 @@ para cada fuente F en {Alestra, Telcel+ATT}:
   aunque el sistema no marque ningún error explícito.
 - Esta validación se implementa como función pura y se prueba con JUnit
   igual que el resto del motor (fixtures en memoria, sin Excel real).
+- **Actualizado (2026-11-05) — alcance real:** calculada dentro del motor,
+  esta comprobación usa los mismos contadores que el motor actualiza al
+  asignar, así que con la regla ambigua default cuadra siempre por
+  construcción. No detecta claves con formato distinto (terminan en "no
+  encontrados", que la UI debe mostrar de forma visible) ni errores al
+  escribir el `.xlsx`. La comprobación independiente es
+  `VerificadorReporteEscrito`: después de escribir el reporte se relee el
+  archivo, se suman las columnas de consumo y se compara contra lo que el
+  motor asignó (ver checklist 08, punto 4).
 
 ## Reglas ambiguas pendientes de confirmar (interfaz `ReglaAmbigua`)
 Dos reglas del motor dependen de datos reales que aún no se han
