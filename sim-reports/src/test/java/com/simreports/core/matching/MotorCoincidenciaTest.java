@@ -390,4 +390,38 @@ class MotorCoincidenciaTest {
         assertEquals(1, finalResult.advertenciasConsistencia().size());
         assertTrue(finalResult.avisosParseo().isEmpty());
     }
+
+    // ---------- Normalización de claves de la plantilla ----------
+
+    @Test
+    void normalizaLasClavesDeLaPlantillaAntesDeBuscarlas() {
+        MotorCoincidencia motor = new MotorCoincidencia(
+                parseo(Map.of("5511112222", 100.0)),
+                parseo(Map.of("8952020221396597611", 7.0)),
+                vacio());
+
+        ResultadoTabla resultado = motor.resolverTabla(new TablaConFilas("HOJA1", TipoTablaPlantilla.SIMPLE_CASCADA,
+                List.of(
+                        FilaPlantilla.cascada("(55) 1111-2222", null),
+                        FilaPlantilla.cascada("   ", " '8952020221396597611' "))));
+
+        assertEquals(100.0, resultado.filas().get(0).consumo().consumoMb());
+        assertEquals(7.0, resultado.filas().get(1).consumo().consumoMb());
+        assertTrue(motor.finalizar().noEncontrados().isEmpty());
+    }
+
+    @Test
+    void noEncontradosSalenOrdenadosPorFuenteYClave() {
+        MotorCoincidencia motor = new MotorCoincidencia(
+                parseo(Map.of("5533333333", 1.0, "5511111111", 2.0, "5522222222", 3.0)),
+                parseo(Map.of("8952000000000000009", 4.0, "8952000000000000001", 5.0)),
+                vacio());
+
+        List<NoEncontrado> noEncontrados = motor.finalizar().noEncontrados();
+
+        assertEquals(List.of("5511111111", "5522222222", "5533333333", "8952000000000000001", "8952000000000000009"),
+                noEncontrados.stream().map(NoEncontrado::clave).toList());
+        assertEquals(FuenteConsumo.ALESTRA, noEncontrados.get(0).fuente());
+        assertEquals(FuenteConsumo.TELCEL_ATT, noEncontrados.get(4).fuente());
+    }
 }

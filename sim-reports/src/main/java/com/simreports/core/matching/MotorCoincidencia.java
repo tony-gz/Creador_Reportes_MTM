@@ -1,10 +1,12 @@
 package com.simreports.core.matching;
 
 import com.simreports.core.AvisoParseo;
+import com.simreports.core.NormalizadorClave;
 import com.simreports.core.ResultadoParseo;
 import com.simreports.core.TipoAviso;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -126,8 +128,9 @@ public class MotorCoincidencia {
         return new ResultadoTabla(tabla.identificador(), filas);
     }
 
-    private ResultadoFilaPlantilla resolverFila(TablaConFilas tabla, FilaPlantilla fila) {
+    private ResultadoFilaPlantilla resolverFila(TablaConFilas tabla, FilaPlantilla filaOriginal) {
         String id = tabla.identificador();
+        FilaPlantilla fila = normalizarClaves(filaOriginal);
         return switch (tabla.tipo()) {
             case SIMPLE_LINEA -> ResultadoFilaPlantilla.simple(resolverContraAlestra(fila.linea(), id));
             case SIMPLE_ICCID -> ResultadoFilaPlantilla.simple(resolverContraTelcelAtt(fila.iccid(), id));
@@ -136,6 +139,25 @@ public class MotorCoincidencia {
                     resolverContraAlestra(fila.linea1(), id),
                     resolverContraAlestra(fila.linea2(), id));
         };
+    }
+
+    /**
+     * Aplica {@link NormalizadorClave} a las claves leídas de la plantilla,
+     * la misma limpieza que ya aplicaron los parsers a las claves de
+     * origen. Una clave que queda vacía se trata como celda en blanco
+     * ({@code null}).
+     */
+    private static FilaPlantilla normalizarClaves(FilaPlantilla fila) {
+        return new FilaPlantilla(
+                claveONull(fila.linea()),
+                claveONull(fila.iccid()),
+                claveONull(fila.linea1()),
+                claveONull(fila.linea2()));
+    }
+
+    private static String claveONull(String valor) {
+        String normalizada = NormalizadorClave.normalizar(valor);
+        return normalizada.isEmpty() ? null : normalizada;
     }
 
     /**
@@ -232,6 +254,9 @@ public class MotorCoincidencia {
                 alestra, lineasConsultadasAlestra, FuenteConsumo.ALESTRA, noEncontrados);
         double totalNoEncontradoTelcelAtt = acumularNoEncontrados(
                 telcelAtt, iccidsConsultadosTelcelAtt, FuenteConsumo.TELCEL_ATT, noEncontrados);
+        // Orden estable (fuente, clave): los Map de origen no garantizan
+        // orden, y el reporte debe salir igual en cada corrida.
+        noEncontrados.sort(Comparator.comparing(NoEncontrado::fuente).thenComparing(NoEncontrado::clave));
 
         double totalOrigenAlestra = sumar(alestra);
         double totalOrigenTelcelAtt = sumar(telcelAtt);

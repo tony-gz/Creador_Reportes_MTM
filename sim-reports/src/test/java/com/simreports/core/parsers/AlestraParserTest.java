@@ -177,4 +177,37 @@ class AlestraParserTest {
         }
         return tabla;
     }
+
+    @Test
+    void leeLineasNumericasYConFormatoComoLaMismaClave() throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet("Alestra");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("LINEA");
+            header.createCell(1).setCellValue("Tráfico MB");
+
+            // Línea guardada como número, con un formato de visualización
+            // de teléfono que DataFormatter aplicaría.
+            Row numerica = sheet.createRow(1);
+            numerica.createCell(0).setCellValue(6641111111d);
+            org.apache.poi.ss.usermodel.CellStyle telefono = workbook.createCellStyle();
+            telefono.setDataFormat(workbook.createDataFormat().getFormat("(000) 000-0000"));
+            numerica.getCell(0).setCellStyle(telefono);
+            numerica.createCell(1).setCellValue(10.0);
+
+            // Misma línea como texto con separadores: debe sumarse a la anterior.
+            Row texto = sheet.createRow(2);
+            texto.createCell(0).setCellValue("664 111-1111");
+            texto.createCell(1).setCellValue("1.234,5");
+
+            crearTablaNativa(sheet, "Table1", 0, 0, 2, 1);
+            workbook.write(out);
+        }
+
+        ResultadoParseo resultado = parser.parsear(new ByteArrayInputStream(out.toByteArray()));
+
+        assertEquals(1, resultado.consumos().size());
+        assertEquals(1244.5, resultado.consumos().get("6641111111"));
+    }
 }

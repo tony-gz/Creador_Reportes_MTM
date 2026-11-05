@@ -3,6 +3,7 @@ package com.simreports.core.parsers;
 import com.simreports.core.ArchivoFormatoInvalidoException;
 import com.simreports.core.AvisoParseo;
 import com.simreports.core.HeaderResolver;
+import com.simreports.core.NormalizadorClave;
 import com.simreports.core.ResultadoParseo;
 import com.simreports.core.TipoAviso;
 
@@ -17,6 +18,10 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -61,7 +66,13 @@ import java.util.Optional;
  * comillas dobles (con comas o saltos de línea dentro, y {@code ""} como
  * comilla escapada), y descarta el BOM UTF-8 inicial si el archivo se
  * guardó como "UTF-8 con BOM" (caso típico al guardar el ATT consolidado
- * desde Excel).</p>
+ * desde Excel). Si el contenido no es UTF-8 válido, se lee como
+ * Windows-1252 (codificación por defecto de Excel en Windows en español)
+ * en vez de llenar el texto de caracteres de reemplazo.</p>
+ *
+ * <p>Las claves (ICCID) se limpian con {@link NormalizadorClave} y los
+ * consumos escritos como texto se leen con {@link LectorNumero}, igual que
+ * en el resto de parsers.</p>
  */
 class ParserIccidConsumoGenerico {
 
@@ -76,9 +87,7 @@ class ParserIccidConsumoGenerico {
      */
     private static final double MAX_ENTERO_EXACTO = 1e15;
 
-    /** Espacios al inicio/fin, incluidos los invisibles (NBSP, BOM, ancho cero). */
-    private static final String REGEX_ESPACIOS_EXTREMOS =
-            "^[\\s\\p{Z}\\uFEFF\\u200B]+|[\\s\\p{Z}\\uFEFF\\u200B]+$";
+    private static final Charset WINDOWS_1252 = Charset.forName("windows-1252");
 
     private final HeaderResolver headerResolver;
     private final String nombreOperador;
@@ -127,7 +136,7 @@ class ParserIccidConsumoGenerico {
 
             String iccid = celdaIccid.esNumerica()
                     ? String.valueOf((long) celdaIccid.numero().doubleValue())
-                    : normalizarValorTexto(celdaIccid.texto());
+                    : NormalizadorClave.normalizar(celdaIccid.texto());
             if (iccid.isEmpty()) {
                 avisos.add(new AvisoParseo(
                         TipoAviso.CLAVE_VACIA_O_MALFORMADA,
@@ -279,7 +288,7 @@ class ParserIccidConsumoGenerico {
     // ------------------------------------------------------------------
 
     private List<List<Celda>> extraerFilasCsv(byte[] contenido) {
-        String texto = new String(contenido, StandardCharsets.UTF_8);
+        String texto = decodificarTexto(contenido);
         if (texto.startsWith("﻿")) {
             texto = texto.substring(1);
         }
@@ -296,13 +305,29 @@ class ParserIccidConsumoGenerico {
     }
 
     /**
+     * Decodifica como UTF-8 estricto; si hay bytes que no son UTF-8 válido,
+     * reintenta como Windows-1252.
+     */
+    private static String decodificarTexto(byte[] contenido) {
+        try {
+            return StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(contenido))
+                    .toString();
+        } catch (CharacterCodingException e) {
+            return new String(contenido, WINDOWS_1252);
+        }
+    }
+
+    /**
      * Lector CSV (RFC 4180) con separador coma:
      * <ul>
      *   <li>Un campo que empieza con {@code "} se lee hasta la comilla de
      *       cierre; dentro puede haber comas y saltos de línea, y
      *       {@code ""} representa una comilla literal.</li>
      *   <li>Las comillas simples no son delimitador: se conservan en el
-     *       valor y se quitan después en {@link #normalizarValorTexto}
+     *       valor y se quitan después con {@link NormalizadorClave}
      *       (caso real de Telcel, spec 02).</li>
      *   <li>Fin de registro: {@code \n}, {@code \r\n} o {@code \r}. Un
      *       salto de línea final no genera un registro vacío extra; una
@@ -407,42 +432,13 @@ class ParserIccidConsumoGenerico {
 
     /**
      * Consumo de la celda: el valor numérico real si la celda es numérica
-     * (.xlsx), o el texto parseado como número en cualquier otro caso.
+     * (.xlsx), o el texto interpretado con {@link LectorNumero} en
+     * cualquier otro caso.
      */
     private Double leerConsumo(Celda celda) {
         if (celda.esNumerica()) {
             return celda.numero();
         }
-        return parsearNumero(celda.texto());
-    }
-
-    /**
-     * Normaliza un valor de celda a texto: quita espacios al inicio/fin
-     * (incluidos los invisibles: NBSP, BOM, ancho cero) y, si el valor
-     * viene envuelto en comillas simples literales (caso real de Telcel
-     * para ICCID/MSISDN, spec 02), las remueve.
-     */
-    private String normalizarValorTexto(String valor) {
-        String v = quitarEspaciosExtremos(valor);
-        if (v.length() >= 2 && v.startsWith("'") && v.endsWith("'")) {
-            v = v.substring(1, v.length() - 1);
-        }
-        return quitarEspaciosExtremos(v);
-    }
-
-    private static String quitarEspaciosExtremos(String valor) {
-        return valor.replaceAll(REGEX_ESPACIOS_EXTREMOS, "");
-    }
-
-    private Double parsearNumero(String texto) {
-        String limpio = normalizarValorTexto(texto).replace(",", "");
-        if (limpio.isEmpty()) {
-            return null;
-        }
-        try {
-            return Double.parseDouble(limpio);
-        } catch (NumberFormatException e) {
-            return null;
-        }
+        return LectorNumero.parsear(celda.texto());
     }
 }

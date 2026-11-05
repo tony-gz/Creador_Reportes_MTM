@@ -4,11 +4,13 @@ package com.simreports.core.matching;
  * Una fila ya leída de una tabla de la plantilla, con los valores de las
  * columnas clave necesarias para el matching — spec 03.
  *
- * <p>Los valores deben venir ya normalizados a texto (spec 01, "Tipo de
- * dato de celda por campo lógico": lectura vía {@code DataFormatter} de
- * Apache POI, sin notación científica ni sufijo {@code .0}). El motor no
- * hace ninguna limpieza adicional: compara igualdad exacta de texto
- * contra las claves de los {@code Map} de origen.</p>
+ * <p>Los valores deben venir como texto (spec 01, "Tipo de dato de celda
+ * por campo lógico": nunca un {@code double} convertido a texto con
+ * notación científica). El motor aplica {@link
+ * com.simreports.core.NormalizadorClave} a cada clave antes de buscarla —
+ * la misma limpieza que usan los parsers de origen —, así que espacios,
+ * guiones, paréntesis o comillas simples alrededor no impiden el
+ * match.</p>
  *
  * <p>Qué campos aplican depende del
  * {@link com.simreports.core.plantilla.TipoTablaPlantilla} de la tabla a
@@ -23,9 +25,8 @@ package com.simreports.core.matching;
  *
  * <p>Un campo que no aplica al tipo de tabla, o cuya celda llegó vacía en
  * Excel (equipo dado de baja — spec 00), se representa como
- * {@code null}. Nunca se usa cadena vacía como señal de "no aplica": esa
- * limpieza es responsabilidad de la capa que lee la celda con Apache
- * POI, no de este record.</p>
+ * {@code null}. Una cadena vacía o solo con espacios también se acepta:
+ * el motor la trata igual que {@code null} tras normalizarla.</p>
  */
 public record FilaPlantilla(String linea, String iccid, String linea1, String linea2) {
 
