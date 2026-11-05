@@ -5,7 +5,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import org.hibernate.annotations.CreationTimestamp;
@@ -22,13 +21,23 @@ import java.util.Objects;
  * anterior. Esto permite reabrir cualquier reporte historico sabiendo
  * exactamente que mapeo de columnas se uso para generarlo.
  *
- * La invariante "solo una fila activa=true a la vez" NO se enforce con un
- * constraint de base de datos (partial unique index): se resuelve a nivel
- * de aplicacion con un lock de fila (SELECT ... FOR UPDATE, ver
- * PlantillaConfigRepository.findActivaParaActualizar) dentro de un metodo
- * @Transactional del servicio de plantilla (spec 04, punto 3 de Fase 2) --
- * es la misma decision de "un solo usuario, sin infraestructura de locks
- * distribuidos" ya tomada en esa spec.
+ * La invariante "solo una fila activa=true a la vez" la garantiza la base
+ * de datos con una restriccion de exclusion parcial y diferida
+ * (ex_plantilla_config_una_activa, ver db/migration/V1__esquema_inicial.sql):
+ * se comprueba al hacer commit, asi que dentro de una misma transaccion se
+ * puede insertar la version nueva y desactivar la anterior en cualquier
+ * orden. Ademas, el servicio de plantilla toma un lock de fila
+ * (SELECT ... FOR UPDATE, ver
+ * PlantillaConfigRepository.findActivaParaActualizar) para que dos
+ * reemplazos simultaneos se serialicen en vez de que uno falle al commit
+ * (spec 04, punto 3 de Fase 2). El lock no cubre el caso de la primera
+ * subida (no hay fila activa que bloquear); ahi la restriccion es la que
+ * impide quedar con dos versiones activas.
+ *
+ * Los campos JSON son columnas text de Postgres (columnDefinition). No se
+ * usa @Lob: en PostgreSQL, Hibernate mapea @Lob String a oid (large
+ * objects), que deja objetos huerfanos al borrar/actualizar y exige
+ * transaccion para leer.
  */
 @Entity
 @Table(
@@ -50,20 +59,17 @@ public class PlantillaConfig {
     private int version;
 
     /** Ruta en disco del .xlsx de esta version (nunca se guarda el binario en Postgres, ver spec 04). */
-    @Column(name = "ruta_archivo", nullable = false, updatable = false)
+    @Column(name = "ruta_archivo", nullable = false, updatable = false, length = 1024)
     private String rutaArchivo;
 
     /**
      * JSON con el resultado persistido del resolver (spec 01) para esta
      * version: por tabla/hoja, el TipoTablaPlantilla, el mapeo de campo
      * logico -> encabezado real, y los encabezados no reconocidos.
-     * Se guarda como texto plano (no jsonb nativo): no se hacen consultas
-     * dentro del JSON, solo se lee/escribe entero, asi que un CLOB/TEXT
-     * portable entre Postgres y H2 (tests) es suficiente y mas simple que
-     * mapear un tipo jsonb especifico.
+     * Se guarda como text (no jsonb nativo): no se hacen consultas dentro
+     * del JSON, solo se lee/escribe entero.
      */
-    @Lob
-    @Column(name = "mapeo_columnas", nullable = false)
+    @Column(name = "mapeo_columnas", nullable = false, columnDefinition = "text")
     private String mapeoColumnas;
 
     /** Solo una fila tiene activa=true a la vez (ver nota de clase). */

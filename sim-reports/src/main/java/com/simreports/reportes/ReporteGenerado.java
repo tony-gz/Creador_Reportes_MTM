@@ -8,7 +8,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.CreationTimestamp;
@@ -23,7 +22,8 @@ import java.util.Objects;
  * (no encontrados, avisos de parseo, advertencias de consistencia).
  *
  * archivosEntrada, lineasNoEncontradas y avisos se guardan como JSON en
- * texto plano (mismo criterio que PlantillaConfig.mapeoColumnas): no se
+ * columnas text (mismo criterio que PlantillaConfig.mapeoColumnas; sin
+ * @Lob, que en Postgres seria oid): no se
  * consulta dentro del JSON, solo se lee/escribe entero para mostrarlo en
  * la UI (Fase 3) o para reabrir el detalle de una corrida pasada.
  */
@@ -55,17 +55,15 @@ public class ReporteGenerado {
      * La app nunca depende del nombre de archivo para el parsing (spec
      * 02) -- esto es solo trazabilidad para la UI/historial.
      */
-    @Lob
-    @Column(name = "archivos_entrada", nullable = false)
+    @Column(name = "archivos_entrada", nullable = false, columnDefinition = "text")
     private String archivosEntrada;
 
     /** Ruta en disco del .xlsx generado, para poder re-descargarlo despues. */
-    @Column(name = "ruta_archivo_resultado", nullable = false, updatable = false)
+    @Column(name = "ruta_archivo_resultado", nullable = false, updatable = false, length = 1024)
     private String rutaArchivoResultado;
 
     /** JSON de la lista de NoEncontrado del motor (spec 03). */
-    @Lob
-    @Column(name = "lineas_no_encontradas", nullable = false)
+    @Column(name = "lineas_no_encontradas", nullable = false, columnDefinition = "text")
     private String lineasNoEncontradas;
 
     /**
@@ -73,8 +71,7 @@ public class ReporteGenerado {
      * malformadas, heredados de spec 02) + AdvertenciaConsistencia (spec
      * 03), para que la UI los muestre todos juntos en un solo lugar.
      */
-    @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     private String avisos;
 
     protected ReporteGenerado() {

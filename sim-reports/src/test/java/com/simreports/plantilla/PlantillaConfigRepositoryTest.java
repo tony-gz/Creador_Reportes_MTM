@@ -1,6 +1,9 @@
 package com.simreports.plantilla;
 
+import com.simreports.PostgresEmbebido;
 import org.junit.jupiter.api.Test;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -19,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 @SpringBootTest
 @Transactional
-class PlantillaConfigRepositoryTest {
+class PlantillaConfigRepositoryTest extends PostgresEmbebido {
 
     @Autowired
     private PlantillaConfigRepository repository;
@@ -100,5 +103,57 @@ class PlantillaConfigRepositoryTest {
         PlantillaConfig releida = repository.findById(config.getId()).orElseThrow();
         assertThat(releida.getMapeoColumnas()).isEqualTo("{\"ALSEA\":{}}");
         assertThat(repository.count()).isEqualTo(1);
+    }
+
+    // ---------- Restricciones que solo existen en PostgreSQL real ----------
+
+    @Autowired
+    private EntityManager entityManager;
+
+    /** Fuerza a comprobar ya las restricciones diferidas (normalmente se comprueban al commit). */
+    private void comprobarRestriccionesDiferidas() {
+        entityManager.flush();
+        entityManager.createNativeQuery("SET CONSTRAINTS ALL IMMEDIATE").executeUpdate();
+    }
+
+    @Test
+    void laBaseDeDatosNoPermiteDosVersionesActivas() {
+        repository.save(new PlantillaConfig(1, "/data/plantillas/v1.xlsx", "{}", true));
+        repository.save(new PlantillaConfig(2, "/data/plantillas/v2.xlsx", "{}", true));
+
+        assertThatThrownBy(this::comprobarRestriccionesDiferidas)
+                .isInstanceOf(PersistenceException.class)
+                .hasStackTraceContaining("ex_plantilla_config_una_activa");
+    }
+
+    @Test
+    void permiteReemplazarLaVersionActivaEnUnaMismaTransaccionSinImportarElOrden() {
+        // Mismo orden en que Hibernate emitiría las sentencias al reemplazar
+        // la plantilla: primero el INSERT de la nueva (activa) y después el
+        // UPDATE de la anterior. Con la restricción diferida, el estado
+        // intermedio con dos activas no falla; solo cuenta el final.
+        PlantillaConfig v1 = repository.saveAndFlush(new PlantillaConfig(1, "/data/plantillas/v1.xlsx", "{}", true));
+        repository.saveAndFlush(new PlantillaConfig(2, "/data/plantillas/v2.xlsx", "{}", true));
+        v1.setActiva(false);
+
+        comprobarRestriccionesDiferidas();
+
+        assertThat(repository.findByActivaTrue()).get().extracting(PlantillaConfig::getVersion).isEqualTo(2);
+    }
+
+    @Test
+    void elMapeoSeGuardaEnUnaColumnaTextYAdmiteJsonGrande() {
+        String tipo = (String) entityManager.createNativeQuery(
+                "select data_type from information_schema.columns "
+                        + "where table_name = 'plantilla_config' and column_name = 'mapeo_columnas'")
+                .getSingleResult();
+        assertThat(tipo).isEqualTo("text");
+
+        String jsonGrande = "{\"x\":\"" + "a".repeat(2_000_000) + "\"}";
+        PlantillaConfig config = repository.saveAndFlush(
+                new PlantillaConfig(1, "/data/plantillas/v1.xlsx", jsonGrande, true));
+        entityManager.clear();
+
+        assertThat(repository.findById(config.getId()).orElseThrow().getMapeoColumnas()).isEqualTo(jsonGrande);
     }
 }
