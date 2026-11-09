@@ -285,7 +285,7 @@
   `CONSUMOS_OCTUBRE_2026.xlsx`. Al generar el reporte se indica el mes y el
   año.
 
-## D-022 — Consumos con dos decimales, truncados (sin redondear)
+## D-022 — Consumos con dos decimales, redondeados como Excel
 
 - **Fecha:** 2026-11-09
 - **Caso:** al revisar el reporte de octubre, el usuario vio que unas tablas
@@ -296,8 +296,11 @@
     muestra redondeado (`209.00`);
   - los consumos de Alestra traen muchos decimales;
   - una celda (KUEHENE NAGEL) tenía formato sin decimales (`#,##0`).
-- **Decisión:** cada consumo se deja con **dos decimales, truncados**, como
-  viene en la BD: `208.999 → 208.99`, `4321.9876 → 4321.98`, `27.39 → 27.39`.
+- **Decisión:** cada consumo se deja con **dos decimales, redondeados**
+  (de 5 en adelante sube, como Excel): `369.137366 → 369.14`,
+  `208.999 → 209.00`, `0.284 → 0.28`, `27.39 → 27.39`.
+  - Primero se decidió truncar (`369.13`); el mismo día el usuario lo
+    cambió a redondear para **no regalar MB** al cliente.
   - Se aplica una sola vez, al entrar los consumos al motor (`ConsumoMb`),
     así que totales, consistencia, reporte final y `.xlsx` usan los mismos
     números.

@@ -240,10 +240,10 @@ class MotorCoincidenciaTest {
         assertTrue(resultado.advertenciasConsistencia().isEmpty());
     }
 
-    // ---------- Dos decimales truncados (D-022) ----------
+    // ---------- Dos decimales redondeados (D-022) ----------
 
     @Test
-    void truncaLosConsumosADosDecimalesAntesDeAsignarYDeSumarTotales() {
+    void redondeaLosConsumosADosDecimalesAntesDeAsignarYDeSumarTotales() {
         MotorCoincidencia motor = new MotorCoincidencia(
                 parseo(Map.of("5511112222", 4321.987654321, "5511113333", 0.289)),
                 parseo(Map.of("89520700000000000011", 208.999)), vacio());
@@ -254,12 +254,12 @@ class MotorCoincidenciaTest {
                 List.of(FilaPlantilla.simplePorIccid("89520700000000000011"))));
         ResultadoMatching resultado = motor.finalizar();
 
-        assertEquals(4321.98, linea.filas().get(0).consumo().consumoMb());
-        assertEquals(208.99, iccid.filas().get(0).consumo().consumoMb());
-        assertEquals(0.28, resultado.noEncontrados().get(0).consumoMb());
+        assertEquals(4321.99, linea.filas().get(0).consumo().consumoMb());
+        assertEquals(209.0, iccid.filas().get(0).consumo().consumoMb());
+        assertEquals(0.29, resultado.noEncontrados().get(0).consumoMb());
         TotalesFuente alestra = resultado.totales().stream()
                 .filter(t -> t.fuente() == FuenteConsumo.ALESTRA).findFirst().orElseThrow();
-        assertEquals(4322.26, alestra.totalOrigen(), 1e-9);
+        assertEquals(4322.28, alestra.totalOrigen(), 1e-9);
         assertTrue(resultado.advertenciasConsistencia().isEmpty());
     }
 

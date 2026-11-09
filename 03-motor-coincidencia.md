@@ -85,8 +85,8 @@ para cada fuente F en {Alestra, Telcel+ATT}:
 ```
 - `margen` es una tolerancia mínima por redondeo de `double` (p. ej.
   `0.01` MB), no una tolerancia de negocio.
-- Antes de todo, el motor trunca cada consumo de origen a **dos decimales,
-  sin redondear** (D-022, `ConsumoMb`): `208.999 → 208.99`. Así
+- Antes de todo, el motor redondea cada consumo de origen a **dos
+  decimales** como Excel (D-022, `ConsumoMb`): `369.1373 → 369.14`. Así
   `totalOrigen` y lo asignado salen de los mismos números y la consistencia
   sigue cuadrando.
 - Motivo: es la red de seguridad más barata posible contra un bug de

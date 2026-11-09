@@ -105,11 +105,11 @@ public class MotorCoincidencia {
         Objects.requireNonNull(att, "att no puede ser null");
         this.reglaAmbigua = Objects.requireNonNull(reglaAmbigua, "reglaAmbigua no puede ser null");
 
-        // D-022: dos decimales truncados, una sola vez y antes de todo.
-        this.alestra = Map.copyOf(ConsumoMb.truncar(alestra.consumos()));
+        // D-022: dos decimales redondeados, una sola vez y antes de todo.
+        this.alestra = Map.copyOf(ConsumoMb.redondear(alestra.consumos()));
 
         ResultadoParseo telcelAttCombinado = CombinadorTelcelAtt.combinar(telcel, att);
-        this.telcelAtt = Map.copyOf(ConsumoMb.truncar(telcelAttCombinado.consumos()));
+        this.telcelAtt = Map.copyOf(ConsumoMb.redondear(telcelAttCombinado.consumos()));
 
         List<AvisoParseo> avisos = new ArrayList<>(alestra.avisos());
         avisos.addAll(telcelAttCombinado.avisos());

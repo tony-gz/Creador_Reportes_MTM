@@ -9,29 +9,30 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class ConsumoMbTest {
 
     @Test
-    void dejaDosDecimalesSinRedondear() {
-        assertEquals(208.99, ConsumoMb.truncar(208.999));
-        assertEquals(4321.98, ConsumoMb.truncar(4321.987654321));
-        assertEquals(0.28, ConsumoMb.truncar(0.284));
-        assertEquals(1.0, ConsumoMb.truncar(1.0));
-        assertEquals(0.0, ConsumoMb.truncar(0.0));
+    void redondeaADosDecimalesComoExcel() {
+        assertEquals(369.14, ConsumoMb.redondear(369.137366294861)); // no se regalan MB
+        assertEquals(209.0, ConsumoMb.redondear(208.999));
+        assertEquals(4321.99, ConsumoMb.redondear(4321.987654321));
+        assertEquals(0.28, ConsumoMb.redondear(0.284));
+        assertEquals(0.13, ConsumoMb.redondear(0.125)); // de 5 en adelante sube
+        assertEquals(1.0, ConsumoMb.redondear(1.0));
+        assertEquals(0.0, ConsumoMb.redondear(0.0));
     }
 
     @Test
     void conservaLosValoresQueYaTraenDosDecimales() {
-        // 27.39 * 100 en double es 2738.9999…; truncar ingenuamente daría 27.38.
-        assertEquals(27.39, ConsumoMb.truncar(27.39));
-        assertEquals(1170.94, ConsumoMb.truncar(1170.94));
+        assertEquals(27.39, ConsumoMb.redondear(27.39));
+        assertEquals(1170.94, ConsumoMb.redondear(1170.94));
     }
 
     @Test
     void ignoraElRuidoDePuntoFlotanteDeLasSumas() {
-        assertEquals(0.3, ConsumoMb.truncar(0.1 + 0.2));
-        assertEquals(28.34, ConsumoMb.truncar(28.339999999999996));
+        assertEquals(0.3, ConsumoMb.redondear(0.1 + 0.2));
+        assertEquals(28.34, ConsumoMb.redondear(28.339999999999996));
     }
 
     @Test
-    void truncaCadaValorDeUnMapa() {
-        assertEquals(Map.of("a", 208.99, "b", 27.39), ConsumoMb.truncar(Map.of("a", 208.999, "b", 27.39)));
+    void redondeaCadaValorDeUnMapa() {
+        assertEquals(Map.of("a", 209.0, "b", 27.39), ConsumoMb.redondear(Map.of("a", 208.999, "b", 27.39)));
     }
 }

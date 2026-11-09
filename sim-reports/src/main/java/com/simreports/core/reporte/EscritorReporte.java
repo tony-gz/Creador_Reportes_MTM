@@ -35,7 +35,7 @@ import java.util.Objects;
  *       lo que hubiera: la fórmula {@code BUSCARV}, un valor escrito a mano
  *       o un texto. Sin coincidencia se escribe 0, aunque la celda tuviera un
  *       valor fijo, porque ese valor es del mes anterior (D-015). El valor ya
- *       viene truncado a dos decimales (D-022) y la celda queda con formato
+ *       viene redondeado a dos decimales (D-022) y la celda queda con formato
  *       {@value #FORMATO_CONSUMO}; el resto del estilo se conserva.</li>
  *   <li>Lo que está fuera de las tablas no se toca (p. ej. el bloque
  *       STARLINK de METROBÚS, D-017).</li>
