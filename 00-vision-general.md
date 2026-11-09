@@ -97,7 +97,8 @@ Excel de 18 hojas (una por cliente).
   convertir las 18 hojas a `Table` nativa de Excel. El resolver **no**
   intenta adivinar un rango a partir de encabezados sueltos — si en algún
   momento una hoja llega sin tabla nativa, se lanza un error explícito
-  señalando qué hoja falta, en vez de fallar en silencio o construir un
+  señalando qué hoja falta (desde el 2026-11-09, todas las hojas con
+  problema en un solo mensaje, `PlantillaInvalidaException`), en vez de fallar en silencio o construir un
   rango "adivinado" que podría ser incorrecto (ver spec 01).
 - **Encabezado de columna con variante no contemplada** (p. ej.
   `"CONSUMO (MB)"` con espacio, encontrado en 3 de las 18 hojas reales) →

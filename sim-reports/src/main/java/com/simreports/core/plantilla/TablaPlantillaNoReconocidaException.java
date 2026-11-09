@@ -8,13 +8,11 @@ package com.simreports.core.plantilla;
  * resultado.
  *
  * <p>Es unchecked a propósito, igual que el resto de excepciones del
- * motor de parsing puro (ver {@code ArchivoFormatoInvalidoException} y
- * {@code HojaSinTablaException} en {@code com.simreports.core}): se
- * captura explícitamente en la capa web de Fase 2. Se prefiere fallar
- * ruidosamente aquí — con el detalle de qué encabezados se encontraron —
- * en vez de adivinar una clasificación que podría ser incorrecta y pasar
- * desapercibida (misma filosofía que {@code HojaSinTablaException},
- * spec 01).</p>
+ * motor de parsing puro. Se prefiere fallar ruidosamente — con el detalle
+ * de qué encabezados se encontraron — en vez de adivinar una clasificación
+ * que podría ser incorrecta y pasar desapercibida (spec 01).
+ * {@link LectorPlantilla} la captura por tabla y la incluye, junto con los
+ * demás problemas, en una {@link PlantillaInvalidaException}.</p>
  */
 public class TablaPlantillaNoReconocidaException extends RuntimeException {
 

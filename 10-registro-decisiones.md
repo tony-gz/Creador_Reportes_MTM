@@ -203,6 +203,9 @@
 
 ## D-015 — Filas sin coincidencia van en 0, aunque traigan un valor escrito a mano
 
+> *La parte de STARLINK quedó reemplazada por D-017: ese bloque no está en
+> ninguna tabla y la app no lo toca.*
+
 - **Fecha:** 2026-11-09
 - **Caso:** filas que la app no encuentra en ningún archivo de operador y que
   en la plantilla traen un valor fijo: los aproximados del RMS de Teltonika
@@ -236,6 +239,27 @@
     → se busca como antes (cascada). Las tablas dual SIM no cambian.
   - En octubre, con la plantilla oficial, ninguna fila tiene el operador en
     desacuerdo con donde está la SIM; el resultado no cambia.
+
+## D-017 — STARLINK de METROBÚS queda fuera de las tablas; la app no lo toca
+
+- **Fecha:** 2026-11-09
+- **Caso:** al convertir METROBÚS en tabla nativa, la hoja tiene dos bloques:
+  las SIMs (filas 8-60, Telcel/Multicarrier) y "SERVICIOS STARLINK" (filas
+  66-100: proveedor, unidad, serie, kit y consumo; sin línea ni ICCID y con
+  celdas combinadas B:C, que una tabla de Excel no admite).
+- **Decisión:** solo las SIMs se convierten en tabla. El bloque STARLINK se
+  queda como está y **la app no lo lee ni lo escribe**: el usuario lo llena
+  cada mes.
+- **Relación con D-015:** D-015 decía que STARLINK iría en 0; esa parte
+  queda reemplazada por esta decisión. El resto de D-015 sigue vigente (las
+  filas de las tablas sin coincidencia van en 0).
+
+## D-018 — BANCO INTERCAM: la segunda columna "Marca" se llama "Modelo"
+
+- **Fecha:** 2026-11-09
+- **Caso:** BANCO INTERCAM tenía dos encabezados "Marca" (G6 y H6); una tabla
+  de Excel no admite nombres repetidos. La columna H trae modelos (RUT950).
+- **Decisión:** H6 pasa a **"Modelo"**. No afecta el cálculo.
 
 ---
 
@@ -281,6 +305,21 @@ Excel recalcule al abrirlo.
       plantilla oficial. De 17,514 celdas cambió solo esa; el consumo de la
       fila ya era 0 y la 286 conserva 10,128.70 MB. Respaldo previo:
       `archivos/CONSUMOS_OCTUBRE_2026_corregido.respaldo-antes-D014.xlsx`.
+- [x] Tablas nativas nuevas (2026-11-09), en el mismo formato que las 11
+      existentes (sin estilo ni filtros):
+  - ALSEA bloque 2 → `Tabla18`, A36:I130;
+  - ASSA ABLOY → `Tabla19`, A6:H8;
+  - DENTALIA → `Tabla20`, A6:H71;
+  - BANCO INTERCAM → `Tabla21`, A6:I21 (H6 "Marca" → "Modelo", D-018);
+  - TIENDAS EXTRA → `Tabla22`, A6:H378;
+  - METROBÚS → `Tabla23`, A8:G60 (STARLINK queda fuera, D-017);
+  - DICONSA → `Tabla24`, A7:J202;
+  - TOTAL PLAY - OTROS → `Tabla25`, A3:I10.
+
+  De 17,514 celdas cambió solo H6 de BANCO INTERCAM. La app acepta la
+  plantilla (19 tablas, 1,020 filas) y da el mismo reporte final. LibreOffice
+  la abre y reconoce las tablas. Respaldo previo:
+  `archivos/CONSUMOS_OCTUBRE_2026_corregido.respaldo-antes-tablas.xlsx`.
 - Las filas 49 de DENTALIA y 270 / 273 de TIENDAS EXTRA no necesitan
   corrección: la regla D-006 las deja en 0 y las reporta. Opcionalmente se
   pueden borrar de la plantilla.

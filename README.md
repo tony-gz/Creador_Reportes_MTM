@@ -12,14 +12,17 @@ App para automatizar los reportes mensuales de consumo de datos SIM de MTM.
 - **Fase 1 — Motor de parsing puro** (`com.simreports.core`, sin Spring):
   completa (spec 06) y corregida tras la revisión del 2026-11-05.
 - **Fase 2 — Capa Spring Boot (REST + almacenamiento)**: en curso (spec 08).
-  Punto 1/7 listo: entidades, repositorios, esquema con Flyway.
+  Puntos 1 y 2 de 7 listos: entidades, repositorios, esquema con Flyway, y
+  lector de la plantilla con versionado en disco.
+  Los `.xlsx` se guardan en `SIMREPORTS_DATOS_DIR` (por defecto `./datos`,
+  excluida de git).
 - **Fase 3 — Web UI**: pendiente.
 
 ## Cómo compilar y probar
 
 ```bash
 cd sim-reports
-./mvnw test   # 211 tests, 0 fallos
+./mvnw test   # 236 tests, 0 fallos
 ```
 
 `./mvnw` (Maven Wrapper) descarga Maven 3.9.16 la primera vez, verificando

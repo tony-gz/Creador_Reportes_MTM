@@ -13,11 +13,12 @@ sim-reports/
     │   │   └── com/
     │   │       └── simreports/
     │   │           ├── SimReportsApplication.java
+    │   │           ├── almacenamiento/
+    │   │           │   └── AlmacenamientoArchivos.java
     │   │           ├── core/
     │   │           │   ├── ArchivoFormatoInvalidoException.java
     │   │           │   ├── AvisoParseo.java
     │   │           │   ├── HeaderResolver.java
-    │   │           │   ├── HojaSinTablaException.java
     │   │           │   ├── NormalizadorClave.java
     │   │           │   ├── OrigenParser.java
     │   │           │   ├── ResultadoParseo.java
@@ -55,14 +56,24 @@ sim-reports/
     │   │           │   │   ├── TelcelHeaderResolver.java
     │   │           │   │   └── TelcelParser.java
     │   │           │   └── plantilla/
+    │   │           │       ├── LectorPlantilla.java
+    │   │           │       ├── MapeoPlantilla.java
+    │   │           │       ├── MapeoTabla.java
     │   │           │       ├── PlantillaHeaderResolver.java
+    │   │           │       ├── PlantillaInvalidaException.java
+    │   │           │       ├── PlantillaLeida.java
     │   │           │       ├── ResolverTablaPlantilla.java
+    │   │           │       ├── TablaLeida.java
     │   │           │       ├── TablaPlantillaNoReconocidaException.java
     │   │           │       ├── TablaPlantillaResuelta.java
     │   │           │       └── TipoTablaPlantilla.java
     │   │           ├── plantilla/
+    │   │           │   ├── MapeoPlantillaJson.java
     │   │           │   ├── PlantillaConfig.java
-    │   │           │   └── PlantillaConfigRepository.java
+    │   │           │   ├── PlantillaConfigRepository.java
+    │   │           │   ├── PlantillaParaReporte.java
+    │   │           │   ├── PlantillaService.java
+    │   │           │   └── SinPlantillaActivaException.java
     │   │           └── reportes/
     │   │               ├── ReporteGenerado.java
     │   │               └── ReporteGeneradoRepository.java
@@ -76,6 +87,8 @@ sim-reports/
         │   └── com/
         │       └── simreports/
         │           ├── PostgresEmbebido.java
+        │           ├── almacenamiento/
+        │           │   └── AlmacenamientoArchivosTest.java
         │           ├── core/
         │           │   ├── AvisoParseoTest.java
         │           │   ├── HeaderResolverNormalizarTest.java
@@ -97,17 +110,20 @@ sim-reports/
         │           │   │   ├── TelcelHeaderResolverTest.java
         │           │   │   └── TelcelParserTest.java
         │           │   └── plantilla/
+        │           │       ├── LectorPlantillaTest.java
         │           │       ├── PlantillaHeaderResolverTest.java
         │           │       └── ResolverTablaPlantillaTest.java
         │           ├── plantilla/
-        │           │   └── PlantillaConfigRepositoryTest.java
+        │           │   ├── MapeoPlantillaJsonTest.java
+        │           │   ├── PlantillaConfigRepositoryTest.java
+        │           │   └── PlantillaServiceTest.java
         │           └── reportes/
         │               └── ReporteGeneradoRepositoryTest.java
         └── resources/
             └── application.yml
 
-ÚLTIMO RESULTADO CONOCIDO: ./mvnw test → BUILD SUCCESS, 165 tests, 0 fallos (2026-11-05).
-FASE 1 COMPLETA. FASE 2: punto 1 de 7.
+ÚLTIMO RESULTADO CONOCIDO: ./mvnw test → BUILD SUCCESS, 236 tests, 0 fallos (2026-11-09).
+FASE 1 COMPLETA. FASE 2: puntos 1 y 2 de 7.
 
 NOTAS PARA OPENCODE
 - Crear/completar exactamente esta estructura (carpetas + los archivos

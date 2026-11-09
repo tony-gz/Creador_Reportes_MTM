@@ -24,9 +24,9 @@
 ```
 src/main/java/com/simreports/core/
 ├── ResultadoParseo.java, AvisoParseo.java, TipoAviso.java
-├── ArchivoFormatoInvalidoException.java, HojaSinTablaException.java
+├── ArchivoFormatoInvalidoException.java
 ├── OrigenParser.java, HeaderResolver.java
-├── plantilla/   → ResolverTablaPlantilla + tipos de tabla
+├── plantilla/   → LectorPlantilla, ResolverTablaPlantilla + tipos de tabla
 ├── parsers/     → AlestraParser, TelcelParser, AttParser
 └── matching/    → MotorCoincidencia + ReglaAmbigua
 ```
@@ -58,12 +58,16 @@ Campos no nulos. `clave` puede ser cadena vacía (caso ICCID vacío).
 - `ArchivoFormatoInvalidoException(String)` y `(String, Throwable)` — parser
   de origen no reconoce el archivo (faltan columnas obligatorias, no hay
   tabla nativa, no se encontró el encabezado dentro del límite).
-- `HojaSinTablaException(String nombreHoja)` + `getNombreHoja()` — una hoja
-  de la plantilla no tiene tabla nativa de Excel.
+- `PlantillaInvalidaException(List<String> problemas)` + `getProblemas()` —
+  (en `core.plantilla`) la plantilla no se puede usar; lleva **todos** los
+  problemas (hojas sin tabla, encabezados fuera de tablas, tablas no
+  clasificables, ICCID como número, columnas del mapeo que ya no existen).
+  Reemplaza a `HojaSinTablaException` (eliminada el 2026-11-09).
 - `TablaPlantillaNoReconocidaException(String)` — (en `core.plantilla`) la
   tabla no se puede clasificar o dos encabezados resuelven al mismo campo.
+  `LectorPlantilla` la captura y la incluye en `PlantillaInvalidaException`.
 
-> Para Fase 2: **estas 3 excepciones son las que traduce el
+> Para Fase 2: **estas excepciones son las que traduce el
 > `@ControllerAdvice`** (spec 04) a respuestas HTTP claras (p. ej. 400),
 > en vez de dejar pasar excepciones crudas de Apache POI.
 
@@ -90,8 +94,8 @@ Nunca lanza por encabezado no reconocido: devuelve `Optional.empty()`.
 ### com.simreports.core.plantilla
 
 **`PlantillaHeaderResolver`** — implementación para la plantilla. Reconocidos
-(normalizados): `LINEA, LINEA_1, LINEA_2, ICCID, CONSUMO(MB), CONSUMO(MB)_1,
-CONSUMO(MB)_2`.
+(normalizados): `SIM` (también `CARRIER`), `LINEA, LINEA_1, LINEA_2, ICCID,
+CONSUMO(MB), CONSUMO(MB)_1, CONSUMO(MB)_2`.
 
 **`TipoTablaPlantilla`** — `enum { SIMPLE_LINEA, SIMPLE_ICCID, SIMPLE_CASCADA, DUAL_SIM }`.
 
@@ -110,10 +114,25 @@ detectada y clasifica. `TablaPlantillaNoReconocidaException` si dos
 encabezados resuelven al mismo campo lógico o no alcanzan las columnas
 para clasificar.
 
-> Para Fase 2: el `mapeoColumnas` persistido en `PlantillaConfig` (spec 04)
-> se construye a partir de `TablaPlantillaResuelta` (campos + encabezados
-> reales). La lectura real de tablas vía `XSSFSheet.getTables()` aún no
-> está cableada — hay que conectarla en Fase 2/3.
+**`LectorPlantilla`** — clase final, lectura de la plantilla con POI (Fase 2
+punto 2):
+```java
+MapeoPlantilla detectar(InputStream archivo);                       // al subir
+PlantillaLeida leer(InputStream archivo, MapeoPlantilla mapeo);     // al generar un reporte
+```
+Ignora hojas `BD_*` y vacías. Lanza `PlantillaInvalidaException` con todos
+los problemas. Lee todas las filas de datos (excluye la de totales); claves
+y `SIM` como texto; cada `FilaPlantilla` con `filaExcel` y `sim`.
+
+**`MapeoTabla(String hoja, String nombreTabla, String rango, TipoTablaPlantilla tipo, Map<String,String> columnaPorCampoLogico, List<String> encabezadosNoReconocidos)`**
+— record; `identificador()` = `"HOJA · Tabla"`. **`MapeoPlantilla(List<MapeoTabla> tablas)`**
+— lo que se persiste en `PlantillaConfig.mapeoColumnas` (JSON
+`{"formato":1,"tablas":[...]}`, ver `MapeoPlantillaJson` en Fase 2).
+
+**`TablaLeida(MapeoTabla mapeo, TablaConFilas tablaConFilas, Map<String,Integer> indiceColumnaPorCampoLogico)`**
+— índice 0 = columna A; el escritor lo usa para ubicar las celdas de
+consumo. **`PlantillaLeida(List<TablaLeida> tablas)`** — `tablasConFilas()`
+para `MotorCoincidencia.resolverTablas`.
 
 ### com.simreports.core.parsers
 

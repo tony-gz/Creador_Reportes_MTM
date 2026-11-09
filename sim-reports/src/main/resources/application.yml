@@ -22,3 +22,9 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+simreports:
+  almacenamiento:
+    # Carpeta donde se guardan las plantillas por versión y los reportes
+    # generados (spec 04). En Postgres solo va la ruta, relativa a esta carpeta.
+    directorio: ${SIMREPORTS_DATOS_DIR:./datos}

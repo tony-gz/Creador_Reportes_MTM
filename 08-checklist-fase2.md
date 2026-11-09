@@ -9,9 +9,11 @@
       Spring Data (`PlantillaConfigRepository`, `ReporteGeneradoRepository`).
       **Entregado:** 2026-09-06. **`mvn test`: 123/123 OK** (113 de Fase 1 +
       10 de Fase 2).
-- [ ] 2. Servicio de plantilla: lectura de tablas nativas con POI
+- [x] 2. Servicio de plantilla: lectura de tablas nativas con POI
       (`XSSFSheet.getTables()`) -> `ResolverTablaPlantilla` -> persistir
       `mapeoColumnas` en la version activa (cableado pendiente segun spec 07).
+      **Entregado:** 2026-11-09. **`./mvnw test`: 236/236 OK.** Ver "Notas
+      del punto 2" abajo.
       Requisitos confirmados con el reporte real de octubre (spec 09):
       ignorar hojas `BD_*`; fallar si una hoja tiene filas de encabezado
       **fuera** de sus tablas nativas (caso ALSEA bloque 2), no solo si no
@@ -25,7 +27,9 @@
       reconocerse.
 - [ ] 3. Endpoints de plantilla (`POST /api/plantilla`, `GET`/`PUT
       /api/plantilla/mapeo`, `GET /api/plantilla/versiones`) + lock
-      `SELECT ... FOR UPDATE` sobre la fila activa. La regla "una sola
+      `SELECT ... FOR UPDATE` sobre la fila activa. *El reemplazo con lock
+      en una transacción ya lo hace `PlantillaService.registrarNuevaVersion`
+      (punto 2); falta la capa web y `PUT` del mapeo.* La regla "una sola
       activa" ya la garantiza la base (restricción diferida, se comprueba
       al commit): el reemplazo debe hacerse en **una sola transacción**
       (insertar la nueva activa + desactivar la anterior, en cualquier
@@ -49,11 +53,15 @@
 - [ ] 5. Endpoints de reportes (`POST /api/reportes`, `GET
       /api/reportes/{id}/descargar`, `GET /api/reportes`).
 - [ ] 6. `@ControllerAdvice` global: traduce `ArchivoFormatoInvalidoException`,
-      `HojaSinTablaException`, `TablaPlantillaNoReconocidaException` a HTTP 400.
+      `PlantillaInvalidaException` (con su lista de problemas) y
+      `TablaPlantillaNoReconocidaException` a HTTP 400, y
+      `SinPlantillaActivaException` a 409. (`HojaSinTablaException` se
+      eliminó en el punto 2.)
 - [ ] 7. Config de datasource (perfiles local/servidor) + almacenamiento de
-      archivos en filesystem. (Flyway ya está configurado; falta la
-      carpeta base de archivos y decidir perfiles vs. variables de
-      entorno.)
+      archivos en filesystem. (Flyway ya está configurado. La carpeta base
+      ya existe desde el punto 2: `simreports.almacenamiento.directorio`,
+      variable `SIMREPORTS_DATOS_DIR`, por defecto `./datos`. Falta decidir
+      perfiles vs. variables de entorno.)
 
 ## Tareas futuras (fuera de la Fase 2)
 - **API de Teltonika RMS** (D-010): consultar automáticamente el consumo de
@@ -161,3 +169,44 @@ Decisión D-016 (spec 10):
   1,258 celdas iguales al manual), sin avisos de operador.
 
 Resultado: `./mvnw test` **211/211 OK** (179 + 32).
+
+## Notas del punto 2 (2026-11-09)
+- **`LectorPlantilla`** (core, puro):
+  - `detectar(archivo)` se usa al subir la plantilla. Ignora las hojas
+    `BD_*` y las vacías, y clasifica cada tabla nativa.
+  - Reúne **todos** los problemas en una `PlantillaInvalidaException`, no
+    solo el primero:
+    - hoja de clientes sin tabla nativa;
+    - encabezados fuera de las tablas (ALSEA bloque 2);
+    - tabla que no se puede clasificar;
+    - ICCID guardado como número.
+  - `leer(archivo, mapeo)` se usa al generar un reporte: lee las filas con
+    el mapeo guardado, que el usuario pudo corregir a mano.
+  - Lee **todas** las filas de datos, también las que no tienen línea ni
+    ICCID (D-015); excluye la fila de totales.
+  - Cada `FilaPlantilla` lleva la fila de Excel y la columna `SIM`.
+  - `TablaLeida` da el índice de columna de cada campo, que es lo que usará
+    el escritor.
+- **`HojaSinTablaException` eliminada**: la reemplaza
+  `PlantillaInvalidaException`, que reporta varias hojas de una vez.
+- **Spring:**
+  - `PlantillaService`:
+    - `registrarNuevaVersion`: valida, toma el lock, guarda el archivo y
+      reemplaza la versión activa en una sola transacción;
+    - `mapeoActivo`;
+    - `leerActivaParaReporte`: toma el lock de la fila activa, que se
+      mantiene durante la transacción de quien lo llama.
+  - `AlmacenamientoArchivos`: guarda en
+    `plantillas/v<n>/plantilla.xlsx`, con escritura atómica, y guarda rutas
+    **relativas** a la carpeta base.
+  - `MapeoPlantillaJson`: Jackson 3, con formato
+    `{"formato":1,"tablas":[...]}`. Se agregó `spring-boot-starter-jackson`.
+- **Plantilla oficial de octubre:** `detectar` encuentra los 8 problemas
+  esperados (7 hojas sin tabla y ALSEA fila 36). Se probó con una copia con
+  esas zonas convertidas en tablas nativas: 19 tablas y 1,060 filas.
+  `detectar` → `leer` → motor da el **mismo reporte final** que la corrida
+  de análisis.
+- ~~Pendiente: convertir a tabla nativa las 7 hojas y el bloque 2 de
+  ALSEA~~ — hecho el mismo día en la plantilla oficial (spec 10,
+  "Correcciones en la plantilla", D-017 y D-018). Ahora la app la acepta: 19
+  tablas, 1,020 filas, mismo reporte final.

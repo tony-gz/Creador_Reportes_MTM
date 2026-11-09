@@ -15,8 +15,9 @@
     la plantilla de agosto 2026, 7 de las 18 hojas todavía eran rango
     suelto sin `Table`. El resolver **no** implementa un modo de
     "adivinar" el rango a partir de encabezados sueltos: si `getTables()`
-    devuelve vacío en alguna hoja, se lanza `HojaSinTablaException`
-    señalando el nombre de la hoja, en vez de construir un rango inferido
+    devuelve vacío en alguna hoja, `LectorPlantilla` lo reporta en una
+    `PlantillaInvalidaException` señalando el nombre de la hoja (junto con
+    los demás problemas de la plantilla, no solo el primero), en vez de construir un rango inferido
     que podría tomar filas de más o de menos sin que nadie lo note. Es más
     seguro fallar ruidosamente una vez al mes (y que el usuario corrija la
     hoja) que arriesgar un rango mal inferido en silencio.
@@ -189,6 +190,6 @@ dependen de formatos que el usuario no controla.
 - ✅ Confirmado con la plantilla real de agosto 2026: nomenclatura de
   encabezados y tipos de tabla (simple / dual SIM) coinciden con lo
   documentado.
-- Pendiente del usuario (compromiso tomado, no bloquea Fase 1): convertir
-  las 7 hojas que aún son rango suelto a tabla nativa de Excel, ya que el
-  resolver depende de `getTables()` sin fallback (ver arriba).
+- ✅ Las 7 hojas que eran rango suelto (y el bloque 2 de ALSEA) ya son
+  tabla nativa desde el 2026-11-09 (spec 10). El bloque STARLINK de METROBÚS
+  queda fuera a propósito (D-017).

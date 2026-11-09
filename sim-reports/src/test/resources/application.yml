@@ -13,3 +13,8 @@ spring:
       hibernate:
         format_sql: true
     show-sql: false
+
+simreports:
+  almacenamiento:
+    # Los tests que escriben archivos la cambian por una carpeta temporal propia.
+    directorio: ${java.io.tmpdir}/sim-reports-tests/datos

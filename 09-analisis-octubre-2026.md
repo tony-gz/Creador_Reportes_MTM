@@ -32,8 +32,9 @@
    el lector debe detectar filas de encabezado fuera de las tablas nativas
    y fallar con un error claro (misma filosofía que `HojaSinTablaException`);
    el usuario convierte el bloque en tabla nativa.
-2. **7 hojas siguen sin tabla nativa**: ASSA ABLOY, DENTALIA, BANCO
-   INTERCAM, TIENDAS EXTRA, METROBÚS, DICONSA, TOTAL PLAY - OTROS.
+2. ~~**7 hojas siguen sin tabla nativa**~~: ASSA ABLOY, DENTALIA, BANCO
+   INTERCAM, TIENDAS EXTRA, METROBÚS, DICONSA, TOTAL PLAY - OTROS. *Resuelto
+   el 2026-11-09, también el bloque 2 de ALSEA (spec 10, D-017/D-018).*
 3. **Las hojas BD_ATT, BD_ALESTRA y BD_TELCEL** viven dentro del reporte. El
    lector de la plantilla debe ignorar las hojas `BD_*` (sus tablas no son
    de clientes y harían fallar la clasificación).

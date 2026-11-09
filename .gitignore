@@ -6,3 +6,5 @@ target/
 WhatsApp Image *
 # Archivos reales de clientes (reportes, BDs de operadores): nunca al repo
 archivos/
+# Carpeta de almacenamiento de la app (plantillas y reportes con datos reales)
+datos/
