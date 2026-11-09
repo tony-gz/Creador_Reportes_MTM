@@ -61,11 +61,16 @@
       `TablaPlantillaNoReconocidaException` a HTTP 400, y
       `SinPlantillaActivaException` a 409. (`HojaSinTablaException` se
       eliminó en el punto 2.) **Entregado con el punto 3** (`ManejadorErrores`).
-- [ ] 7. Config de datasource (perfiles local/servidor) + almacenamiento de
+- [x] 7. Config de datasource (perfiles local/servidor) + almacenamiento de
       archivos en filesystem. (Flyway ya está configurado. La carpeta base
       ya existe desde el punto 2: `simreports.almacenamiento.directorio`,
-      variable `SIMREPORTS_DATOS_DIR`, por defecto `./datos`. Falta decidir
-      perfiles vs. variables de entorno.)
+      variable `SIMREPORTS_DATOS_DIR`, por defecto `./datos`.)
+      **Entregado:** 2026-11-09. Decisión del usuario: **solo variables de
+      entorno**, sin perfiles (`SIMREPORTS_DB_URL`, `SIMREPORTS_DB_USER`,
+      `SIMREPORTS_DB_PASSWORD`, `SIMREPORTS_DATOS_DIR`, `SERVER_PORT`;
+      tabla en el README). Probado arrancando el `.jar` con esas variables
+      contra un PostgreSQL temporal: plantilla real → 201, generar octubre →
+      201, descarga → 200, sin plantilla → 409. **Fase 2 completa.**
 
 ## Tareas futuras (fuera de la Fase 2)
 - **API de Teltonika RMS** (D-010): consultar automáticamente el consumo de

@@ -91,11 +91,10 @@ excepciones crudas de Apache POI.
   cadena de conexión (host/usuario/password), que es config, no diseño.
 - Postgres guarda **metadatos y rutas**, no los archivos `.xlsx` en sí
   (ver "Almacenamiento de archivos" abajo).
-- Queda como decisión operativa menor (no bloquea Fase 2): si eso se
-  resuelve con un único `application.yml` parametrizado por variables de
-  entorno, o con perfiles `application-local.yml` /
-  `application-servidor.yml` separados. No afecta el diseño de las
-  entidades de arriba.
+- **Decidido (2026-11-09): un único `application.yml` parametrizado por
+  variables de entorno**, sin perfiles: `SIMREPORTS_DB_URL`,
+  `SIMREPORTS_DB_USER`, `SIMREPORTS_DB_PASSWORD`, `SIMREPORTS_DATOS_DIR` y
+  `SERVER_PORT` (ver README).
 
 ## Almacenamiento de archivos (nuevo)
 - Los `.xlsx` (plantilla por versión, reportes generados) se guardan en el
@@ -134,9 +133,8 @@ excepciones crudas de Apache POI.
 
 ## Empaquetado (Fase 4)
 - Jar ejecutable (`spring-boot:repackage`).
-- Perfiles `application.yml` para local vs servidor (fundamentalmente
-  cambia la config de datasource y la carpeta base de almacenamiento de
-  archivos).
+- Sin perfiles: la diferencia entre local y servidor (datasource y carpeta
+  de almacenamiento) va por variables de entorno (decidido el 2026-11-09).
 - Docker opcional, solo si se decide desplegar en servidor propio con
   contenedores.
 

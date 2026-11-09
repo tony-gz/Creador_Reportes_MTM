@@ -99,6 +99,10 @@ sim-reports/
     │   │               └── ManejadorErrores.java
     │   └── resources/
     │       ├── application.yml
+    │       ├── static/                      ← pantalla web (Fase 3, spec 11)
+    │       │   ├── index.html
+    │       │   ├── css/app.css
+    │       │   └── js/ (api, app, detalle, dom, formato, vista-generar, vista-historial, vista-plantilla)
     │       └── db/
     │           └── migration/
     │               ├── V1__esquema_inicial.sql
@@ -110,6 +114,8 @@ sim-reports/
         │           ├── PostgresEmbebido.java
         │           ├── almacenamiento/
         │           │   └── AlmacenamientoArchivosTest.java
+        │           ├── web/
+        │           │   └── PaginaWebTest.java
         │           ├── core/
         │           │   ├── AvisoParseoTest.java
         │           │   ├── HeaderResolverNormalizarTest.java
@@ -150,8 +156,8 @@ sim-reports/
         └── resources/
             └── application.yml
 
-ÚLTIMO RESULTADO CONOCIDO: ./mvnw test → BUILD SUCCESS, 263 tests, 0 fallos (2026-11-09).
-FASE 1 COMPLETA. FASE 2: puntos 1 a 6 de 7 (falta el 7, perfiles de configuración).
+ÚLTIMO RESULTADO CONOCIDO: ./mvnw test → BUILD SUCCESS, 266 tests, 0 fallos (2026-11-09).
+FASE 1 COMPLETA. FASE 2 COMPLETA (7/7). FASE 3: pantalla web lista (spec 11).
 
 NOTAS PARA OPENCODE
 - Crear/completar exactamente esta estructura (carpetas + los archivos

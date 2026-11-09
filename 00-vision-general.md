@@ -81,6 +81,8 @@ Excel de 18 hojas (una por cliente).
   encontrados y validación de consistencia.
 - `04-modelo-datos-y-api.md` — entidades versionadas, endpoints REST,
   almacenamiento y empaquetado.
+- `11-fase3-ui.md` — pantalla web (Fase 3): decisiones, pantallas y
+  checklist.
 
 ## Casos borde documentados (con decisión tomada)
 - **ICCID vacío en la plantilla o en una BD de origen** → se excluye de la
