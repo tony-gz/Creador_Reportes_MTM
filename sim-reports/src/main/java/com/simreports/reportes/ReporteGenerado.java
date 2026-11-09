@@ -58,7 +58,26 @@ public class ReporteGenerado {
     @Column(name = "archivos_entrada", nullable = false, columnDefinition = "text")
     private String archivosEntrada;
 
-    /** Ruta en disco del .xlsx generado, para poder re-descargarlo despues. */
+    /** Mes y año que reporta (Fase 2 punto 4); dan el nombre del archivo. */
+    @Column(name = "periodo_anio", nullable = false, updatable = false)
+    private int periodoAnio;
+
+    @Column(name = "periodo_mes", nullable = false, updatable = false)
+    private int periodoMes;
+
+    /** Nombre del .xlsx generado, p. ej. CONSUMOS_OCTUBRE_2026.xlsx. */
+    @Column(name = "nombre_archivo", nullable = false, updatable = false, length = 255)
+    private String nombreArchivo;
+
+    /**
+     * Texto del reporte final de la corrida (ReporteFinalCorrida: totales,
+     * SIMs repetidas, consumo sin cliente, avisos). Se muestra en la app; no
+     * va dentro del .xlsx (decision del 2026-11-09).
+     */
+    @Column(name = "reporte_final", nullable = false, updatable = false, columnDefinition = "text")
+    private String reporteFinal;
+
+    /** Ruta en disco del .xlsx generado (relativa a la carpeta de almacenamiento), para re-descargarlo. */
     @Column(name = "ruta_archivo_resultado", nullable = false, updatable = false, length = 1024)
     private String rutaArchivoResultado;
 
@@ -80,12 +99,20 @@ public class ReporteGenerado {
 
     public ReporteGenerado(
             PlantillaConfig plantillaVersion,
+            int periodoAnio,
+            int periodoMes,
+            String nombreArchivo,
             String archivosEntrada,
             String rutaArchivoResultado,
             String lineasNoEncontradas,
-            String avisos
+            String avisos,
+            String reporteFinal
     ) {
         this.plantillaVersion = Objects.requireNonNull(plantillaVersion, "plantillaVersion no puede ser null");
+        this.periodoAnio = periodoAnio;
+        this.periodoMes = periodoMes;
+        this.nombreArchivo = Objects.requireNonNull(nombreArchivo, "nombreArchivo no puede ser null");
+        this.reporteFinal = Objects.requireNonNull(reporteFinal, "reporteFinal no puede ser null");
         this.archivosEntrada = Objects.requireNonNull(archivosEntrada, "archivosEntrada no puede ser null");
         this.rutaArchivoResultado = Objects.requireNonNull(rutaArchivoResultado, "rutaArchivoResultado no puede ser null");
         this.lineasNoEncontradas = Objects.requireNonNull(lineasNoEncontradas, "lineasNoEncontradas no puede ser null");
@@ -107,6 +134,22 @@ public class ReporteGenerado {
     /** Atajo usado por la capa web/serializacion en vez de navegar la relacion completa. */
     public Long getPlantillaVersionId() {
         return plantillaVersion.getId();
+    }
+
+    public int getPeriodoAnio() {
+        return periodoAnio;
+    }
+
+    public int getPeriodoMes() {
+        return periodoMes;
+    }
+
+    public String getNombreArchivo() {
+        return nombreArchivo;
+    }
+
+    public String getReporteFinal() {
+        return reporteFinal;
     }
 
     public String getArchivosEntrada() {

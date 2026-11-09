@@ -16,7 +16,8 @@ import java.util.Objects;
  * ({@code simreports.almacenamiento.directorio}), para que mover la carpeta
  * completa no rompa las rutas guardadas.
  *
- * <p>Estructura: {@code plantillas/v<version>/plantilla.xlsx}.</p>
+ * <p>Estructura: {@code plantillas/v<version>/plantilla.xlsx} y
+ * {@code reportes/<carpeta>/<nombre>.xlsx}, con una carpeta por corrida.</p>
  *
  * <p>La escritura es atómica (archivo temporal + mover): nunca queda un
  * {@code .xlsx} a medias. Si la transacción que registra la versión falla
@@ -37,6 +38,18 @@ public class AlmacenamientoArchivos {
         Objects.requireNonNull(contenido, "contenido no puede ser null");
         Path relativa = Path.of("plantillas", "v" + version, "plantilla.xlsx");
         escribirAtomico(base.resolve(relativa), contenido);
+        return relativa.toString();
+    }
+
+    /**
+     * Guarda un reporte generado en {@code reportes/<carpeta>/<nombre>} y
+     * devuelve su ruta relativa. La carpeta identifica la corrida (no se
+     * reutiliza); el nombre es el que verá el usuario al descargarlo.
+     */
+    public String guardarReporte(String carpeta, String nombre, byte[] contenido) {
+        Objects.requireNonNull(contenido, "contenido no puede ser null");
+        Path relativa = Path.of("reportes", carpeta, nombre);
+        escribirAtomico(resolver(relativa.toString()), contenido);
         return relativa.toString();
     }
 

@@ -34,7 +34,7 @@
       al commit): el reemplazo debe hacerse en **una sola transacción**
       (insertar la nueva activa + desactivar la anterior, en cualquier
       orden).
-- [ ] 4. Servicio de reportes: orquesta los 3 parsers + `MotorCoincidencia`,
+- [x] 4. Servicio de reportes: orquesta los 3 parsers + `MotorCoincidencia`,
       escribe el .xlsx de salida, guarda `ReporteGenerado`. Después de
       escribir, **releer el archivo** y pasar la suma de las columnas de
       consumo a `VerificadorReporteEscrito.verificar(...)`; un descuadre
@@ -50,8 +50,12 @@
         necesita casos especiales. *Sugerencia (no decidida):* listar en el
         reporte final las filas cuyo valor fijo se reemplazó por 0, para que
         el usuario sepa cuáles llenar desde el RMS.
-- [ ] 5. Endpoints de reportes (`POST /api/reportes`, `GET
+      **Entregado:** 2026-11-09. **`./mvnw test`: 257/257 OK.** Ver "Notas
+      del punto 4" abajo.
+- [x] 5. Endpoints de reportes (`POST /api/reportes`, `GET
       /api/reportes/{id}/descargar`, `GET /api/reportes`).
+      **Entregado:** 2026-11-09. **`./mvnw test`: 263/263 OK.** Ver "Notas
+      del punto 5" abajo.
 - [x] 6. `@ControllerAdvice` global: traduce `ArchivoFormatoInvalidoException`,
       `PlantillaInvalidaException` (con su lista de problemas) y
       `TablaPlantillaNoReconocidaException` a HTTP 400, y
@@ -245,3 +249,72 @@ Resultado: `./mvnw test` **211/211 OK** (179 + 32).
 - **Probado con la plantilla oficial real** (test temporal, no versionado):
   `POST` → 201, `GET` → 200, `leerActivaParaReporte` → 19 tablas y 1,020
   filas.
+
+## Notas del punto 4 (2026-11-09)
+- **`EscritorReporte`** (core, `core.reporte`):
+  - Escribe sobre una copia de la plantilla, en cada celda de consumo de las
+    tablas, lo que asignó el motor (0 sin coincidencia, D-015). Reemplaza
+    la fórmula `BUSCARV`, el valor a mano o el texto, y conserva el formato
+    de la celda.
+  - No toca lo que está fuera de las tablas (STARLINK, D-017).
+  - Quita las hojas `BD_*` (D-020).
+  - Recalcula los `CONSUMO_TOTAL` y deja el libro marcado para que Excel
+    recalcule al abrir.
+  - `sumarConsumos` relee el archivo escrito para la verificación.
+- **`ReporteService.generar(periodo, alestra, telcel, att)`**: en una
+  transacción que mantiene el lock de la plantilla activa:
+  1. parsea los 3 archivos; si uno es inválido, el error dice cuál
+     ("Archivo de Telcel ('…'): …");
+  2. corre el motor;
+  3. escribe el reporte, lo relee y lo verifica con
+     `VerificadorReporteEscrito`; si no cuadra,
+     `ReporteDescuadradoException` (500) y no se guarda nada;
+  4. lo guarda en `reportes/<fecha-hora>-<id>/CONSUMOS_<MES>_<AÑO>.xlsx`
+     (D-021);
+  5. registra la corrida en `ReporteGenerado`:
+     - archivos de entrada (nombre, bytes, sha256);
+     - no encontrados;
+     - avisos (totales, consistencia, SIMs repetidas, avisos de parseo);
+     - **reporte final** en texto (solo en la app, D-019).
+- **Migración Flyway `V2`:** columnas `periodo_anio`, `periodo_mes`,
+  `nombre_archivo` y `reporte_final` en `reporte_generado`.
+- **Prueba con los archivos reales** (test temporal, no versionado):
+  plantilla oficial, Alestra, **CSV crudo de Telcel** y BD_ATT como archivo
+  de ATT.
+  - Generó `CONSUMOS_OCTUBRE_2026.xlsx` con la verificación cuadrada
+    (10,560,605 MB) y las 18 hojas de clientes con sus 19 tablas.
+  - LibreOffice lo abre y lo exporta a PDF.
+  - El CSV crudo de Telcel trae los mismos 27 ICCID que BD_TELCEL; uno
+    difiere en 0.95 MB, probablemente por la fecha de descarga.
+  - Copia para revisión en
+    `archivos/CONSUMOS_OCTUBRE_2026_generado_por_app.xlsx`.
+
+## Notas del punto 5 (2026-11-09)
+- `ReporteController`:
+  - `POST /api/reportes`: multipart con `anio`, `mes`, `alestra`, `telcel`
+    y `att`. Responde `201`, `Location: /api/reportes/{id}` y el detalle.
+  - `GET /api/reportes`: historial, la más reciente primero.
+  - `GET /api/reportes/{id}`: detalle de una corrida. No estaba en la spec;
+    lo necesita la UI para reabrir una corrida pasada.
+  - `GET /api/reportes/{id}/descargar`: el `.xlsx`, con
+    `Content-Disposition` y su nombre `CONSUMOS_<MES>_<AÑO>.xlsx`.
+- **El detalle** trae el reporte final en texto y, como objetos JSON, los
+  archivos usados, el consumo sin cliente y los avisos (totales,
+  consistencia, SIMs repetidas, avisos de parseo).
+- **Errores:**
+  - mes o año inválido, archivo vacío o que no se reconoce → 400 (dice cuál
+    archivo);
+  - sin plantilla activa → 409;
+  - reporte inexistente → 404;
+  - descuadre del escritor → 500.
+
+  Todas las respuestas de error, también las propias de Spring, traen la
+  lista `problemas`.
+- El repositorio trae la versión de plantilla en la misma consulta
+  (`@EntityGraph`), porque `open-in-view` está apagado.
+- **Probado por HTTP con los archivos reales** (test temporal, no
+  versionado):
+  - plantilla → 201;
+  - generar → 201;
+  - descargar → 200, `CONSUMOS_OCTUBRE_2026.xlsx`;
+  - historial → 200.

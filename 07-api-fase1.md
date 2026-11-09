@@ -328,6 +328,18 @@ de 3 args del motor; se puede reemplazar en el de 4 args. (Reemplaza a
 `PrimeraCoincidenciaGanaReglaAmbigua`, que dejaba en 0 también las
 repeticiones entre hojas.)
 
+### com.simreports.core.reporte (Fase 2 punto 4)
+
+**`EscritorReporte`** — escribe el reporte sobre una copia de la plantilla:
+```java
+ReporteEscrito escribir(byte[] plantilla, PlantillaLeida leida, List<ResultadoTabla> resultados);
+static double sumarConsumos(byte[] reporte, PlantillaLeida leida);   // relee para VerificadorReporteEscrito
+```
+Escribe cada celda de consumo como número (reemplaza fórmula, texto o valor a
+mano; conserva el formato), no toca lo que está fuera de las tablas, quita
+las hojas `BD_*` y recalcula las fórmulas restantes.
+**`ReporteEscrito(byte[] contenido, int celdasEscritas, int formulasSinRecalcular)`** — record.
+
 ## Notas de comportamiento que la Fase 2 debe respetar
 
 - Los parsers y el motor son **puros**: no conocen HTTP ni Spring. La

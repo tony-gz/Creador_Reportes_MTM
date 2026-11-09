@@ -261,6 +261,30 @@
   de Excel no admite nombres repetidos. La columna H trae modelos (RUT950).
 - **Decisión:** H6 pasa a **"Modelo"**. No afecta el cálculo.
 
+## D-019 — El reporte final de la corrida queda solo en la app
+
+- **Fecha:** 2026-11-09
+- **Decisión:** el reporte final (totales, SIMs repetidas, consumo sin
+  cliente, avisos) se guarda con cada corrida y se muestra en la app. **No**
+  va dentro del `.xlsx` generado, para que no llegue información interna a
+  un cliente si se reenvía el libro.
+
+## D-020 — El reporte generado no incluye las hojas BD_*
+
+- **Fecha:** 2026-11-09
+- **Caso:** BD_ALESTRA, BD_TELCEL y BD_ATT traen los datos del mes anterior.
+  La app escribe valores en lugar de `BUSCARV`, así que ninguna fórmula las
+  usa.
+- **Decisión:** el `.xlsx` generado se entrega **sin** esas hojas. La
+  plantilla guardada no cambia.
+
+## D-021 — Nombre del archivo generado: CONSUMOS_MES_AÑO.xlsx
+
+- **Fecha:** 2026-11-09
+- **Decisión:** como lo hace hoy el usuario, p. ej.
+  `CONSUMOS_OCTUBRE_2026.xlsx`. Al generar el reporte se indica el mes y el
+  año.
+
 ---
 
 ## Regla general (confirmada el 2026-11-05)

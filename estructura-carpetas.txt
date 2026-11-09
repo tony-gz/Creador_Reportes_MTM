@@ -55,18 +55,21 @@ sim-reports/
     │   │           │   │   ├── ParserIccidConsumoGenerico.java
     │   │           │   │   ├── TelcelHeaderResolver.java
     │   │           │   │   └── TelcelParser.java
-    │   │           │   └── plantilla/
-    │   │           │       ├── LectorPlantilla.java
-    │   │           │       ├── MapeoPlantilla.java
-    │   │           │       ├── MapeoTabla.java
-    │   │           │       ├── PlantillaHeaderResolver.java
-    │   │           │       ├── PlantillaInvalidaException.java
-    │   │           │       ├── PlantillaLeida.java
-    │   │           │       ├── ResolverTablaPlantilla.java
-    │   │           │       ├── TablaLeida.java
-    │   │           │       ├── TablaPlantillaNoReconocidaException.java
-    │   │           │       ├── TablaPlantillaResuelta.java
-    │   │           │       └── TipoTablaPlantilla.java
+    │   │           │   ├── plantilla/
+    │   │           │   │   ├── LectorPlantilla.java
+    │   │           │   │   ├── MapeoPlantilla.java
+    │   │           │   │   ├── MapeoTabla.java
+    │   │           │   │   ├── PlantillaHeaderResolver.java
+    │   │           │   │   ├── PlantillaInvalidaException.java
+    │   │           │   │   ├── PlantillaLeida.java
+    │   │           │   │   ├── ResolverTablaPlantilla.java
+    │   │           │   │   ├── TablaLeida.java
+    │   │           │   │   ├── TablaPlantillaNoReconocidaException.java
+    │   │           │   │   ├── TablaPlantillaResuelta.java
+    │   │           │   │   └── TipoTablaPlantilla.java
+    │   │           │   └── reporte/
+    │   │           │       ├── EscritorReporte.java
+    │   │           │       └── ReporteEscrito.java
     │   │           ├── plantilla/
     │   │           │   ├── CorreccionMapeoSolicitud.java
     │   │           │   ├── MapeoPlantillaJson.java
@@ -80,15 +83,26 @@ sim-reports/
     │   │           │   ├── SinPlantillaActivaException.java
     │   │           │   └── VersionPlantillaRespuesta.java
     │   │           ├── reportes/
+    │   │           │   ├── ArchivoDescarga.java
+    │   │           │   ├── ArchivoEntrada.java
+    │   │           │   ├── Periodo.java
+    │   │           │   ├── ReporteController.java
+    │   │           │   ├── ReporteDescuadradoException.java
+    │   │           │   ├── ReporteDetalleRespuesta.java
     │   │           │   ├── ReporteGenerado.java
-    │   │           │   └── ReporteGeneradoRepository.java
+    │   │           │   ├── ReporteGeneradoRepository.java
+    │   │           │   ├── ReporteNoEncontradoException.java
+    │   │           │   ├── ReporteResultado.java
+    │   │           │   ├── ReporteResumenRespuesta.java
+    │   │           │   └── ReporteService.java
     │   │           └── web/
     │   │               └── ManejadorErrores.java
     │   └── resources/
     │       ├── application.yml
     │       └── db/
     │           └── migration/
-    │               └── V1__esquema_inicial.sql
+    │               ├── V1__esquema_inicial.sql
+    │               └── V2__reporte_periodo_y_reporte_final.sql
     └── test/
         ├── java/
         │   └── com/
@@ -116,22 +130,28 @@ sim-reports/
         │           │   │   ├── LectorNumeroTest.java
         │           │   │   ├── TelcelHeaderResolverTest.java
         │           │   │   └── TelcelParserTest.java
-        │           │   └── plantilla/
-        │           │       ├── LectorPlantillaTest.java
-        │           │       ├── PlantillaHeaderResolverTest.java
-        │           │       └── ResolverTablaPlantillaTest.java
+        │           │   ├── plantilla/
+        │           │   │   ├── LectorPlantillaTest.java
+        │           │   │   ├── PlantillaHeaderResolverTest.java
+        │           │   │   └── ResolverTablaPlantillaTest.java
+        │           │   └── reporte/
+        │           │       └── EscritorReporteTest.java
         │           ├── plantilla/
         │           │   ├── MapeoPlantillaJsonTest.java
         │           │   ├── PlantillaConfigRepositoryTest.java
         │           │   ├── PlantillaControllerTest.java
         │           │   └── PlantillaServiceTest.java
         │           └── reportes/
-        │               └── ReporteGeneradoRepositoryTest.java
+        │               ├── ArchivosDePrueba.java
+        │               ├── PeriodoTest.java
+        │               ├── ReporteControllerTest.java
+        │               ├── ReporteGeneradoRepositoryTest.java
+        │               └── ReporteServiceTest.java
         └── resources/
             └── application.yml
 
-ÚLTIMO RESULTADO CONOCIDO: ./mvnw test → BUILD SUCCESS, 246 tests, 0 fallos (2026-11-09).
-FASE 1 COMPLETA. FASE 2: puntos 1, 2, 3 y 6 de 7.
+ÚLTIMO RESULTADO CONOCIDO: ./mvnw test → BUILD SUCCESS, 263 tests, 0 fallos (2026-11-09).
+FASE 1 COMPLETA. FASE 2: puntos 1 a 6 de 7 (falta el 7, perfiles de configuración).
 
 NOTAS PARA OPENCODE
 - Crear/completar exactamente esta estructura (carpetas + los archivos

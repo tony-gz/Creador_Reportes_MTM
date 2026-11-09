@@ -12,9 +12,11 @@ App para automatizar los reportes mensuales de consumo de datos SIM de MTM.
 - **Fase 1 — Motor de parsing puro** (`com.simreports.core`, sin Spring):
   completa (spec 06) y corregida tras la revisión del 2026-11-05.
 - **Fase 2 — Capa Spring Boot (REST + almacenamiento)**: en curso (spec 08).
-  Puntos 1, 2, 3 y 6 de 7 listos: entidades, repositorios, esquema con
-  Flyway, lector de la plantilla con versionado en disco, endpoints de la
-  plantilla y manejo de errores.
+  Puntos 1 a 6 de 7 listos: entidades, repositorios, esquema con Flyway,
+  lector de la plantilla con versionado en disco, endpoints de la
+  plantilla y de reportes, manejo de errores y servicio de reportes (genera
+  el `.xlsx`, lo verifica y guarda el reporte final). Queda el punto 7
+  (perfiles de configuración).
   Los `.xlsx` se guardan en `SIMREPORTS_DATOS_DIR` (por defecto `./datos`,
   excluida de git).
 - **Fase 3 — Web UI**: pendiente.
@@ -23,7 +25,7 @@ App para automatizar los reportes mensuales de consumo de datos SIM de MTM.
 
 ```bash
 cd sim-reports
-./mvnw test   # 246 tests, 0 fallos
+./mvnw test   # 263 tests, 0 fallos
 ```
 
 `./mvnw` (Maven Wrapper) descarga Maven 3.9.16 la primera vez, verificando
@@ -54,6 +56,17 @@ curl -X PUT -H 'Content-Type: application/json' \
 
 Si la plantilla tiene problemas, la respuesta es `400` con la lista
 completa en `problemas` (formato estándar `application/problem+json`).
+
+### Endpoints de reportes
+
+```bash
+curl -F anio=2026 -F mes=10 \
+     -F alestra=@"Tráfico por línea.xlsx" -F telcel=@Uso_de_datos.csv -F att=@att.xlsx \
+     http://localhost:8080/api/reportes                               # generar (devuelve el detalle y el reporte final)
+curl http://localhost:8080/api/reportes                               # historial
+curl http://localhost:8080/api/reportes/1                             # detalle de una corrida
+curl -OJ http://localhost:8080/api/reportes/1/descargar               # descarga CONSUMOS_OCTUBRE_2026.xlsx
+```
 
 ## Documentación
 

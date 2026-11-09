@@ -30,10 +30,14 @@ class ReporteGeneradoRepositoryTest extends PostgresEmbebido {
 
         ReporteGenerado reporte = new ReporteGenerado(
                 plantilla,
+                2026,
+                9,
+                "CONSUMOS_SEPTIEMBRE_2026.xlsx",
                 "{\"alestra\":\"a.xlsx\",\"telcel\":\"t.csv\",\"att\":\"att.xlsx\"}",
-                "/data/reportes/2026-09.xlsx",
+                "reportes/r1/CONSUMOS_SEPTIEMBRE_2026.xlsx",
                 "[]",
-                "[]"
+                "[]",
+                "REPORTE FINAL DE LA CORRIDA"
         );
 
         ReporteGenerado guardado = reporteRepository.save(reporte);
@@ -41,19 +45,22 @@ class ReporteGeneradoRepositoryTest extends PostgresEmbebido {
         assertThat(guardado.getId()).isNotNull();
         assertThat(guardado.getFecha()).isNotNull();
         assertThat(guardado.getPlantillaVersionId()).isEqualTo(plantilla.getId());
+        assertThat(guardado.getPeriodoMes()).isEqualTo(9);
+        assertThat(guardado.getNombreArchivo()).isEqualTo("CONSUMOS_SEPTIEMBRE_2026.xlsx");
+        assertThat(guardado.getReporteFinal()).startsWith("REPORTE FINAL");
     }
 
     @Test
-    void findAllByOrderByFechaDescDevuelveElHistorial() {
+    void findAllByOrderByFechaDescIdDescDevuelveElHistorialMasRecientePrimero() {
         PlantillaConfig plantilla = plantillaRepository.save(
                 new PlantillaConfig(1, "/data/plantillas/v1.xlsx", "{}", true)
         );
 
-        reporteRepository.save(new ReporteGenerado(plantilla, "{}", "/data/reportes/r1.xlsx", "[]", "[]"));
-        reporteRepository.save(new ReporteGenerado(plantilla, "{}", "/data/reportes/r2.xlsx", "[]", "[]"));
+        reporteRepository.save(new ReporteGenerado(plantilla, 2026, 9, "r1.xlsx", "{}", "reportes/r1/r1.xlsx", "[]", "[]", ""));
+        reporteRepository.save(new ReporteGenerado(plantilla, 2026, 10, "r2.xlsx", "{}", "reportes/r2/r2.xlsx", "[]", "[]", ""));
 
-        List<ReporteGenerado> historial = reporteRepository.findAllByOrderByFechaDesc();
+        List<ReporteGenerado> historial = reporteRepository.findAllByOrderByFechaDescIdDesc();
 
-        assertThat(historial).hasSize(2);
+        assertThat(historial).extracting(ReporteGenerado::getNombreArchivo).containsExactly("r2.xlsx", "r1.xlsx");
     }
 }

@@ -37,6 +37,9 @@ nueva, porque no cambia el archivo, solo la interpretación de sus columnas.
 | rutaArchivoResultado | String | ruta en disco del .xlsx generado, para poder re-descargarlo después |
 | lineasNoEncontradas | JSON | resultado del reporte secundario (spec 03) |
 | avisos | JSON | duplicados agregados, claves malformadas (spec 02) e inconsistencias de totales (spec 03) |
+| periodoAnio, periodoMes | int | mes y año que reporta (desde V2, 2026-11-09) |
+| nombreArchivo | String | `CONSUMOS_<MES>_<AÑO>.xlsx` (D-021) |
+| reporteFinal | text | reporte final de la corrida (`ReporteFinalCorrida`); solo en la app, no en el `.xlsx` (D-019) |
 
 ## Endpoints REST (borrador)
 | Método | Ruta | Función |
@@ -67,10 +70,19 @@ excepciones crudas de Apache POI.
 - `GET /api/plantilla/versiones` — `200` →
   `[{"id","version","activa","fechaCreacion"}, ...]`, la más reciente
   primero.
+- `POST /api/reportes` — `multipart/form-data`: `anio`, `mes`, `alestra`,
+  `telcel`, `att`. `201` + `Location: /api/reportes/{id}` →
+  `{"id","fecha","periodoAnio","periodoMes","nombreArchivo","versionPlantilla","urlDescarga","reporteFinal","archivosEntrada":[...],"consumoSinCliente":[...],"avisos":{"totales","advertenciasConsistencia","simsRepetidas","avisosParseo","formulasSinRecalcular"}}`.
+- `GET /api/reportes` — `200` → `[{"id","fecha","periodoAnio","periodoMes","nombreArchivo","versionPlantilla","urlDescarga"}]`, la más reciente primero.
+- `GET /api/reportes/{id}` — `200` con el mismo detalle que el `POST`; `404` si no existe.
+- `GET /api/reportes/{id}/descargar` — `200`, el `.xlsx` con
+  `Content-Disposition: attachment; filename="CONSUMOS_<MES>_<AÑO>.xlsx"`.
 - **Errores** — `application/problem+json` (RFC 9457):
   `{"title","status","detail","problemas":[...]}`. Plantilla con problemas
-  o corrección inválida → `400` con **todos** los problemas; sin plantilla
-  activa → `409`.
+  o corrección inválida → `400` con **todos** los problemas; archivo de
+  operador inválido, vacío o periodo inválido → `400`; sin plantilla activa
+  → `409`; reporte inexistente → `404`; reporte escrito que no cuadra →
+  `500`. Toda respuesta de error trae `problemas`.
 
 ## Base de datos: decidido — PostgreSQL
 - Se usa **PostgreSQL** tanto en local (instancia local o vía Docker) como
