@@ -95,7 +95,7 @@ Nunca lanza por encabezado no reconocido: devuelve `Optional.empty()`.
 
 **`PlantillaHeaderResolver`** — implementación para la plantilla. Reconocidos
 (normalizados): `SIM` (también `CARRIER`), `LINEA, LINEA_1, LINEA_2, ICCID,
-CONSUMO(MB), CONSUMO(MB)_1, CONSUMO(MB)_2`.
+CONSUMO(MB), CONSUMO(MB)_1, CONSUMO(MB)_2`. `static Set<String> camposLogicos()`.
 
 **`TipoTablaPlantilla`** — `enum { SIMPLE_LINEA, SIMPLE_ICCID, SIMPLE_CASCADA, DUAL_SIM }`.
 
@@ -119,6 +119,8 @@ punto 2):
 ```java
 MapeoPlantilla detectar(InputStream archivo);                       // al subir
 PlantillaLeida leer(InputStream archivo, MapeoPlantilla mapeo);     // al generar un reporte
+MapeoTabla reclasificar(InputStream archivo, String hoja, String nombreTabla,
+                        Map<String,String> columnaPorCampoLogico);  // PUT /api/plantilla/mapeo
 ```
 Ignora hojas `BD_*` y vacías. Lanza `PlantillaInvalidaException` con todos
 los problemas. Lee todas las filas de datos (excluye la de totales); claves

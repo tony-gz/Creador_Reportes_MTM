@@ -25,11 +25,11 @@
       (D-016) dependen de eso. Encabezados reales con
       espacio, como `CONSUMO (MB)` (KUEHENE NAGEL, PETCO, ANIXTER), deben
       reconocerse.
-- [ ] 3. Endpoints de plantilla (`POST /api/plantilla`, `GET`/`PUT
+- [x] 3. Endpoints de plantilla (`POST /api/plantilla`, `GET`/`PUT
       /api/plantilla/mapeo`, `GET /api/plantilla/versiones`) + lock
-      `SELECT ... FOR UPDATE` sobre la fila activa. *El reemplazo con lock
-      en una transacción ya lo hace `PlantillaService.registrarNuevaVersion`
-      (punto 2); falta la capa web y `PUT` del mapeo.* La regla "una sola
+      `SELECT ... FOR UPDATE` sobre la fila activa.
+      **Entregado:** 2026-11-09. **`./mvnw test`: 246/246 OK.** Ver "Notas
+      del punto 3" abajo. La regla "una sola
       activa" ya la garantiza la base (restricción diferida, se comprueba
       al commit): el reemplazo debe hacerse en **una sola transacción**
       (insertar la nueva activa + desactivar la anterior, en cualquier
@@ -52,11 +52,11 @@
         el usuario sepa cuáles llenar desde el RMS.
 - [ ] 5. Endpoints de reportes (`POST /api/reportes`, `GET
       /api/reportes/{id}/descargar`, `GET /api/reportes`).
-- [ ] 6. `@ControllerAdvice` global: traduce `ArchivoFormatoInvalidoException`,
+- [x] 6. `@ControllerAdvice` global: traduce `ArchivoFormatoInvalidoException`,
       `PlantillaInvalidaException` (con su lista de problemas) y
       `TablaPlantillaNoReconocidaException` a HTTP 400, y
       `SinPlantillaActivaException` a 409. (`HojaSinTablaException` se
-      eliminó en el punto 2.)
+      eliminó en el punto 2.) **Entregado con el punto 3** (`ManejadorErrores`).
 - [ ] 7. Config de datasource (perfiles local/servidor) + almacenamiento de
       archivos en filesystem. (Flyway ya está configurado. La carpeta base
       ya existe desde el punto 2: `simreports.almacenamiento.directorio`,
@@ -210,3 +210,38 @@ Resultado: `./mvnw test` **211/211 OK** (179 + 32).
   ALSEA~~ — hecho el mismo día en la plantilla oficial (spec 10,
   "Correcciones en la plantilla", D-017 y D-018). Ahora la app la acepta: 19
   tablas, 1,020 filas, mismo reporte final.
+
+## Notas del punto 3 (2026-11-09)
+- `PlantillaController` (spec 04):
+  - `POST /api/plantilla`: multipart, campo `archivo`; responde `201` con la
+    versión y su mapeo.
+  - `GET /api/plantilla/mapeo`: versión activa y su mapeo.
+  - `PUT /api/plantilla/mapeo`: corrige a mano una tabla, con cuerpo
+    `{hoja, nombreTabla, columnaPorCampoLogico}`. No crea versión nueva.
+  - `GET /api/plantilla/versiones`: la más reciente primero, sin la ruta en
+    disco.
+- **Corrección del mapeo:** `LectorPlantilla.reclasificar` vuelve a
+  clasificar la tabla con el mapeo del usuario. Valida:
+  - campos lógicos conocidos;
+  - columnas que existan en la tabla;
+  - una columna por campo;
+  - tipo clasificable.
+
+  Después se comprueba que toda la plantilla se lea con el mapeo nuevo. Si
+  algo falla, responde `400` y el mapeo guardado no cambia. Usa el lock
+  `SELECT ... FOR UPDATE` sobre la versión activa.
+- **Errores (punto 6), `ManejadorErrores`:** respuestas RFC 9457
+  (`application/problem+json`) con `title`, `detail` y la lista
+  `problemas`.
+  - `PlantillaInvalidaException`, `TablaPlantillaNoReconocidaException` y
+    `ArchivoFormatoInvalidoException` → 400.
+  - `SinPlantillaActivaException` → 409.
+  - Los errores de Spring MVC (falta el archivo, cuerpo ilegible, archivo
+    demasiado grande) salen con el mismo formato.
+- **Límites de subida:** 20 MB por archivo, 60 MB por petición.
+- **Dependencias:** `spring-boot-starter-webmvc` y, para tests,
+  `spring-boot-starter-webmvc-test` (en Boot 4, `@AutoConfigureMockMvc`
+  está en `org.springframework.boot.webmvc.test.autoconfigure`).
+- **Probado con la plantilla oficial real** (test temporal, no versionado):
+  `POST` → 201, `GET` → 200, `leerActivaParaReporte` → 19 tablas y 1,020
+  filas.

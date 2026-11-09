@@ -40,6 +40,11 @@ public class PlantillaHeaderResolver implements HeaderResolver {
             "CONSUMO(MB)_2"
     );
 
+    /** Los campos lógicos que puede tener una tabla de la plantilla. */
+    public static Set<String> camposLogicos() {
+        return CAMPOS_LOGICOS;
+    }
+
     /** Nombre alterno de la columna {@code SIM} (operador de la SIM). */
     private static final String SINONIMO_SIM = "CARRIER";
 

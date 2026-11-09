@@ -347,4 +347,58 @@ class LectorPlantillaTest {
                 "Tabla 'GEPP · TablaBorrada': ya no existe en el archivo.",
                 "Tabla 'BORRADA · Tabla1': ya no existe en el archivo (no está la hoja)."), problemas);
     }
+
+    // ---------- Corrección manual del mapeo ----------
+
+    /** Tabla cuya columna de líneas se llama "Número": se detecta como SIMPLE_ICCID. */
+    private static byte[] tablaConNumero() {
+        XSSFWorkbook libro = new XSSFWorkbook();
+        XSSFSheet hoja = libro.createSheet("GEPP");
+        fila(hoja, 0, 0, "Número", "ICCID", "Notas", "CONSUMO(MB)");
+        fila(hoja, 1, 0, "5511112222", "89520700000000000011", "x", 0.0);
+        tabla(hoja, "Tabla3", 0, 0, 1, 3);
+        return contenido(libro);
+    }
+
+    @Test
+    void reclasificaUnaTablaConElMapeoCorregidoAMano() {
+        byte[] archivo = tablaConNumero();
+        assertEquals(TipoTablaPlantilla.SIMPLE_ICCID,
+                lector.detectar(new ByteArrayInputStream(archivo)).tablas().get(0).tipo());
+
+        MapeoTabla corregida = lector.reclasificar(new ByteArrayInputStream(archivo), "GEPP", "Tabla3",
+                Map.of("LINEA", "Número", "ICCID", "ICCID", "CONSUMO(MB)", "CONSUMO(MB)"));
+
+        assertEquals(new MapeoTabla("GEPP", "Tabla3", "A1:D2", TipoTablaPlantilla.SIMPLE_CASCADA,
+                Map.of("LINEA", "Número", "ICCID", "ICCID", "CONSUMO(MB)", "CONSUMO(MB)"),
+                List.of("Notas")), corregida);
+    }
+
+    @Test
+    void laCorreccionRechazaCamposColumnasYTablasQueNoExisten() {
+        byte[] archivo = tablaConNumero();
+
+        List<String> problemas = problemas(() -> lector.reclasificar(new ByteArrayInputStream(archivo), "GEPP",
+                "Tabla3", Map.of("TELEFONO", "Número", "ICCID", "No existe", "CONSUMO(MB)", "CONSUMO(MB)")));
+        assertEquals(2, problemas.size(), problemas.toString());
+        assertTrue(problemas.stream().anyMatch(p -> p.contains("'TELEFONO' no es un campo lógico")), problemas.toString());
+        assertTrue(problemas.stream().anyMatch(p -> p.contains("no tiene la columna 'No existe' (para ICCID)")),
+                problemas.toString());
+
+        assertEquals(List.of("Hoja 'GEPP', tabla 'Otra': no existe en la plantilla activa."),
+                problemas(() -> lector.reclasificar(new ByteArrayInputStream(archivo), "GEPP", "Otra", Map.of())));
+    }
+
+    @Test
+    void laCorreccionRechazaUnaColumnaParaDosCamposOUnaTablaQueNoSePuedeClasificar() {
+        byte[] archivo = tablaConNumero();
+
+        List<String> dosCampos = problemas(() -> lector.reclasificar(new ByteArrayInputStream(archivo), "GEPP",
+                "Tabla3", Map.of("LINEA", "Número", "ICCID", "Número")));
+        assertTrue(dosCampos.get(0).contains("se asignó a dos campos"), dosCampos.toString());
+
+        List<String> sinConsumo = problemas(() -> lector.reclasificar(new ByteArrayInputStream(archivo), "GEPP",
+                "Tabla3", Map.of("LINEA", "Número")));
+        assertTrue(sinConsumo.get(0).contains("no CONSUMO(MB)"), sinConsumo.toString());
+    }
 }

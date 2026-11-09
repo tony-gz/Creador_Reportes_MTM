@@ -12,8 +12,9 @@ App para automatizar los reportes mensuales de consumo de datos SIM de MTM.
 - **Fase 1 — Motor de parsing puro** (`com.simreports.core`, sin Spring):
   completa (spec 06) y corregida tras la revisión del 2026-11-05.
 - **Fase 2 — Capa Spring Boot (REST + almacenamiento)**: en curso (spec 08).
-  Puntos 1 y 2 de 7 listos: entidades, repositorios, esquema con Flyway, y
-  lector de la plantilla con versionado en disco.
+  Puntos 1, 2, 3 y 6 de 7 listos: entidades, repositorios, esquema con
+  Flyway, lector de la plantilla con versionado en disco, endpoints de la
+  plantilla y manejo de errores.
   Los `.xlsx` se guardan en `SIMREPORTS_DATOS_DIR` (por defecto `./datos`,
   excluida de git).
 - **Fase 3 — Web UI**: pendiente.
@@ -22,7 +23,7 @@ App para automatizar los reportes mensuales de consumo de datos SIM de MTM.
 
 ```bash
 cd sim-reports
-./mvnw test   # 236 tests, 0 fallos
+./mvnw test   # 246 tests, 0 fallos
 ```
 
 `./mvnw` (Maven Wrapper) descarga Maven 3.9.16 la primera vez, verificando
@@ -37,6 +38,22 @@ configura con `SIMREPORTS_DB_URL`, `SIMREPORTS_DB_USER` y
 `SIMREPORTS_DB_PASSWORD` (valores por defecto en
 `src/main/resources/application.yml`). El esquema lo crea Flyway al
 arrancar (`src/main/resources/db/migration`).
+
+### Endpoints de la plantilla
+
+Con la app corriendo (`./mvnw spring-boot:run`, puerto 8080):
+
+```bash
+curl -F archivo=@plantilla.xlsx http://localhost:8080/api/plantilla   # subir una versión nueva
+curl http://localhost:8080/api/plantilla/mapeo                        # mapeo de la versión activa
+curl http://localhost:8080/api/plantilla/versiones                    # historial
+curl -X PUT -H 'Content-Type: application/json' \
+     -d '{"hoja":"GEPP","nombreTabla":"Tabla3","columnaPorCampoLogico":{"LINEA":"LINEA","CONSUMO(MB)":"CONSUMO(MB)"}}' \
+     http://localhost:8080/api/plantilla/mapeo                        # corregir el mapeo de una tabla
+```
+
+Si la plantilla tiene problemas, la respuesta es `400` con la lista
+completa en `problemas` (formato estándar `application/problem+json`).
 
 ## Documentación
 

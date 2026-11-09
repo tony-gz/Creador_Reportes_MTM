@@ -54,6 +54,24 @@ parseo (`ArchivoFormatoInvalidoException`, spec 02) a respuestas HTTP 400
 con el detalle de qué campo/columna faltó, en vez de dejar pasar
 excepciones crudas de Apache POI.
 
+### Formatos (implementados el 2026-11-09, endpoints de plantilla)
+- `POST /api/plantilla` — `multipart/form-data`, campo `archivo` (.xlsx).
+  `201` →
+  `{"version":{"id","version","activa","fechaCreacion"},"mapeo":{"tablas":[{"hoja","nombreTabla","rango","tipo","columnaPorCampoLogico","encabezadosNoReconocidos"}]}}`.
+- `GET /api/plantilla/mapeo` — `200` con el mismo cuerpo; `409` si todavía
+  no hay plantilla.
+- `PUT /api/plantilla/mapeo` — cuerpo
+  `{"hoja":"GEPP","nombreTabla":"Tabla3","columnaPorCampoLogico":{"LINEA":"Número","ICCID":"ICCID","CONSUMO(MB)":"CONSUMO(MB)"}}`
+  (reemplaza completo el mapeo de esa tabla; la tabla se reclasifica).
+  `200` con el mismo cuerpo que el `GET`.
+- `GET /api/plantilla/versiones` — `200` →
+  `[{"id","version","activa","fechaCreacion"}, ...]`, la más reciente
+  primero.
+- **Errores** — `application/problem+json` (RFC 9457):
+  `{"title","status","detail","problemas":[...]}`. Plantilla con problemas
+  o corrección inválida → `400` con **todos** los problemas; sin plantilla
+  activa → `409`.
+
 ## Base de datos: decidido — PostgreSQL
 - Se usa **PostgreSQL** tanto en local (instancia local o vía Docker) como
   en servidor. Al ser el mismo motor en ambos entornos, ya no hace falta

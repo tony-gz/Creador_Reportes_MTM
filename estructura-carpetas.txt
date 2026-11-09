@@ -68,15 +68,22 @@ sim-reports/
     │   │           │       ├── TablaPlantillaResuelta.java
     │   │           │       └── TipoTablaPlantilla.java
     │   │           ├── plantilla/
+    │   │           │   ├── CorreccionMapeoSolicitud.java
     │   │           │   ├── MapeoPlantillaJson.java
+    │   │           │   ├── PlantillaActiva.java
     │   │           │   ├── PlantillaConfig.java
     │   │           │   ├── PlantillaConfigRepository.java
+    │   │           │   ├── PlantillaController.java
     │   │           │   ├── PlantillaParaReporte.java
+    │   │           │   ├── PlantillaRespuesta.java
     │   │           │   ├── PlantillaService.java
-    │   │           │   └── SinPlantillaActivaException.java
-    │   │           └── reportes/
-    │   │               ├── ReporteGenerado.java
-    │   │               └── ReporteGeneradoRepository.java
+    │   │           │   ├── SinPlantillaActivaException.java
+    │   │           │   └── VersionPlantillaRespuesta.java
+    │   │           ├── reportes/
+    │   │           │   ├── ReporteGenerado.java
+    │   │           │   └── ReporteGeneradoRepository.java
+    │   │           └── web/
+    │   │               └── ManejadorErrores.java
     │   └── resources/
     │       ├── application.yml
     │       └── db/
@@ -116,14 +123,15 @@ sim-reports/
         │           ├── plantilla/
         │           │   ├── MapeoPlantillaJsonTest.java
         │           │   ├── PlantillaConfigRepositoryTest.java
+        │           │   ├── PlantillaControllerTest.java
         │           │   └── PlantillaServiceTest.java
         │           └── reportes/
         │               └── ReporteGeneradoRepositoryTest.java
         └── resources/
             └── application.yml
 
-ÚLTIMO RESULTADO CONOCIDO: ./mvnw test → BUILD SUCCESS, 236 tests, 0 fallos (2026-11-09).
-FASE 1 COMPLETA. FASE 2: puntos 1 y 2 de 7.
+ÚLTIMO RESULTADO CONOCIDO: ./mvnw test → BUILD SUCCESS, 246 tests, 0 fallos (2026-11-09).
+FASE 1 COMPLETA. FASE 2: puntos 1, 2, 3 y 6 de 7.
 
 NOTAS PARA OPENCODE
 - Crear/completar exactamente esta estructura (carpetas + los archivos

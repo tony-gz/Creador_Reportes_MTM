@@ -86,12 +86,12 @@ class PlantillaServiceTest extends PostgresEmbebido {
     void laPrimeraSubidaCreaLaVersion1ActivaYGuardaElArchivoYElMapeo() throws IOException {
         byte[] archivo = plantilla("5511112222");
 
-        PlantillaConfig v1 = servicio.registrarNuevaVersion(archivo);
+        PlantillaConfig v1 = servicio.registrarNuevaVersion(archivo).version();
 
         assertThat(v1.getVersion()).isEqualTo(1);
         assertThat(v1.isActiva()).isTrue();
         assertThat(Files.readAllBytes(datos.resolve(v1.getRutaArchivo()))).isEqualTo(archivo);
-        MapeoPlantilla mapeo = servicio.mapeoActivo().orElseThrow();
+        MapeoPlantilla mapeo = servicio.activa().orElseThrow().mapeo();
         assertThat(mapeo.tablas()).hasSize(1);
         assertThat(mapeo.tablas().get(0).tipo()).isEqualTo(TipoTablaPlantilla.SIMPLE_CASCADA);
         assertThat(mapeo.tablas().get(0).identificador()).isEqualTo("GEPP · Tabla3");
@@ -99,9 +99,9 @@ class PlantillaServiceTest extends PostgresEmbebido {
 
     @Test
     void unaSubidaNuevaDesactivaLaAnteriorYConservaSuArchivo() throws IOException {
-        PlantillaConfig v1 = servicio.registrarNuevaVersion(plantilla("5511112222"));
+        PlantillaConfig v1 = servicio.registrarNuevaVersion(plantilla("5511112222")).version();
 
-        PlantillaConfig v2 = servicio.registrarNuevaVersion(plantilla("5511113333"));
+        PlantillaConfig v2 = servicio.registrarNuevaVersion(plantilla("5511113333")).version();
 
         assertThat(v2.getVersion()).isEqualTo(2);
         assertThat(repositorio.findByActivaTrue()).get().extracting(PlantillaConfig::getId).isEqualTo(v2.getId());
@@ -112,7 +112,7 @@ class PlantillaServiceTest extends PostgresEmbebido {
 
     @Test
     void unaPlantillaConProblemasNoGuardaNadaYConservaLaActiva() throws IOException {
-        PlantillaConfig v1 = servicio.registrarNuevaVersion(plantilla("5511112222"));
+        PlantillaConfig v1 = servicio.registrarNuevaVersion(plantilla("5511112222")).version();
         byte[] sinTablas;
         try (XSSFWorkbook libro = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Row fila = libro.createSheet("DENTALIA").createRow(5);
@@ -134,7 +134,7 @@ class PlantillaServiceTest extends PostgresEmbebido {
     @Test
     void leeLaPlantillaActivaParaUnReporteConElMapeoGuardado() throws IOException {
         byte[] archivo = plantilla("5511112222");
-        PlantillaConfig v1 = servicio.registrarNuevaVersion(archivo);
+        PlantillaConfig v1 = servicio.registrarNuevaVersion(archivo).version();
 
         PlantillaParaReporte paraReporte = servicio.leerActivaParaReporte();
 
@@ -147,7 +147,7 @@ class PlantillaServiceTest extends PostgresEmbebido {
 
     @Test
     void sinPlantillaActivaNoSePuedeGenerarUnReporte() {
-        assertThat(servicio.mapeoActivo()).isEmpty();
+        assertThat(servicio.activa()).isEmpty();
         assertThatThrownBy(() -> servicio.leerActivaParaReporte())
                 .isInstanceOf(SinPlantillaActivaException.class);
     }

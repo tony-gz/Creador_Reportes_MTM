@@ -2,6 +2,13 @@ spring:
   application:
     name: sim-reports
 
+  # La plantilla pesa ~200 KB y los archivos de los operadores menos de 1 MB;
+  # el límite por defecto de Spring (1 MB) queda justo.
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 60MB
+
   datasource:
     url: ${SIMREPORTS_DB_URL:jdbc:postgresql://localhost:5432/sim_reports}
     username: ${SIMREPORTS_DB_USER:sim_reports}

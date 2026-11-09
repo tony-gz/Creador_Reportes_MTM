@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -151,6 +152,68 @@ public final class LectorPlantilla {
             }
             lanzarSiHayProblemas(problemas);
             return new PlantillaLeida(leidas);
+        } catch (IOException e) {
+            throw new PlantillaInvalidaException(List.of("No se pudo leer el archivo: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Reclasifica una tabla con un mapeo corregido a mano ({@code PUT
+     * /api/plantilla/mapeo}, spec 04): cada campo lógico apunta al encabezado
+     * real que indica el usuario, en lugar del que se detectó. Se vuelve a
+     * calcular el tipo de tabla y los encabezados no reconocidos.
+     *
+     * @param columnaPorCampoLogico campo lógico → encabezado real de la tabla.
+     * @throws PlantillaInvalidaException si la hoja o la tabla no existen, si
+     *         un campo no es campo lógico, si un encabezado no está en la tabla
+     *         o se usa para dos campos, o si con ese mapeo la tabla no se puede
+     *         clasificar.
+     */
+    public MapeoTabla reclasificar(
+            InputStream archivo, String hoja, String nombreTabla, Map<String, String> columnaPorCampoLogico) {
+        Objects.requireNonNull(archivo, "archivo no puede ser null");
+        Objects.requireNonNull(hoja, "hoja no puede ser null");
+        Objects.requireNonNull(nombreTabla, "nombreTabla no puede ser null");
+        Objects.requireNonNull(columnaPorCampoLogico, "columnaPorCampoLogico no puede ser null");
+        String id = "Hoja '" + hoja + "', tabla '" + nombreTabla + "'";
+        try (XSSFWorkbook libro = abrir(archivo)) {
+            XSSFSheet xHoja = libro.getSheet(hoja);
+            XSSFTable tabla = xHoja == null ? null : buscarTabla(xHoja, nombreTabla);
+            if (tabla == null) {
+                throw new PlantillaInvalidaException(List.of(id + ": no existe en la plantilla activa."));
+            }
+            List<String> encabezados = new ArrayList<>();
+            for (XSSFTableColumn columna : tabla.getColumns()) {
+                encabezados.add(columna.getName());
+            }
+            List<String> problemas = new ArrayList<>();
+            Map<String, String> campoPorEncabezado = new LinkedHashMap<>();
+            for (Map.Entry<String, String> e : columnaPorCampoLogico.entrySet()) {
+                String campo = e.getKey();
+                String encabezado = e.getValue();
+                if (!PlantillaHeaderResolver.camposLogicos().contains(campo)) {
+                    problemas.add(id + ": '" + campo + "' no es un campo lógico. Válidos: "
+                            + new TreeSet<>(PlantillaHeaderResolver.camposLogicos()) + ".");
+                } else if (encabezado == null || !encabezados.contains(encabezado)) {
+                    problemas.add(id + ": no tiene la columna '" + encabezado + "' (para " + campo
+                            + "). Columnas de la tabla: " + encabezados + ".");
+                } else {
+                    String anterior = campoPorEncabezado.putIfAbsent(encabezado, campo);
+                    if (anterior != null) {
+                        problemas.add(id + ": la columna '" + encabezado + "' se asignó a dos campos: "
+                                + anterior + " y " + campo + ".");
+                    }
+                }
+            }
+            lanzarSiHayProblemas(problemas);
+            HeaderResolver manual = encabezado -> Optional.ofNullable(campoPorEncabezado.get(encabezado));
+            try {
+                TablaPlantillaResuelta resuelta = new ResolverTablaPlantilla(manual).resolver(encabezados);
+                return new MapeoTabla(xHoja.getSheetName(), tabla.getName(), tabla.getArea().formatAsString(),
+                        resuelta.tipo(), resuelta.columnaPorCampoLogico(), resuelta.encabezadosNoReconocidos());
+            } catch (TablaPlantillaNoReconocidaException e) {
+                throw new PlantillaInvalidaException(List.of(id + ": " + e.getMessage()));
+            }
         } catch (IOException e) {
             throw new PlantillaInvalidaException(List.of("No se pudo leer el archivo: " + e.getMessage()));
         }
