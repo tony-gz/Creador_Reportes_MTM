@@ -1,6 +1,7 @@
 package com.simreports.core.matching;
 
 import com.simreports.core.AvisoParseo;
+import com.simreports.core.ConsumoMb;
 import com.simreports.core.NormalizadorClave;
 import com.simreports.core.ResultadoParseo;
 import com.simreports.core.TipoAviso;
@@ -104,10 +105,11 @@ public class MotorCoincidencia {
         Objects.requireNonNull(att, "att no puede ser null");
         this.reglaAmbigua = Objects.requireNonNull(reglaAmbigua, "reglaAmbigua no puede ser null");
 
-        this.alestra = alestra.consumos();
+        // D-022: dos decimales truncados, una sola vez y antes de todo.
+        this.alestra = Map.copyOf(ConsumoMb.truncar(alestra.consumos()));
 
         ResultadoParseo telcelAttCombinado = CombinadorTelcelAtt.combinar(telcel, att);
-        this.telcelAtt = telcelAttCombinado.consumos();
+        this.telcelAtt = Map.copyOf(ConsumoMb.truncar(telcelAttCombinado.consumos()));
 
         List<AvisoParseo> avisos = new ArrayList<>(alestra.avisos());
         avisos.addAll(telcelAttCombinado.avisos());

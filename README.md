@@ -11,21 +11,24 @@ App para automatizar los reportes mensuales de consumo de datos SIM de MTM.
 
 - **Fase 1 — Motor de parsing puro** (`com.simreports.core`, sin Spring):
   completa (spec 06) y corregida tras la revisión del 2026-11-05.
-- **Fase 2 — Capa Spring Boot (REST + almacenamiento)**: en curso (spec 08).
-  Puntos 1 a 6 de 7 listos: entidades, repositorios, esquema con Flyway,
-  lector de la plantilla con versionado en disco, endpoints de la
-  plantilla y de reportes, manejo de errores y servicio de reportes (genera
-  el `.xlsx`, lo verifica y guarda el reporte final). Queda el punto 7
-  (perfiles de configuración).
+- **Fase 2 — Capa Spring Boot (REST + almacenamiento)**: **completa** (7/7,
+  spec 08): entidades y esquema con Flyway, lector de la
+  plantilla con versionado en disco, endpoints de la plantilla y de
+  reportes, manejo de errores, servicio de reportes (genera el `.xlsx`, lo
+  verifica y guarda el reporte final) y configuración por variables de
+  entorno.
   Los `.xlsx` se guardan en `SIMREPORTS_DATOS_DIR` (por defecto `./datos`,
   excluida de git).
-- **Fase 3 — Web UI**: pendiente.
+- **Fase 3 — Web UI**: lista (spec 11). Pantallas para generar reportes,
+  administrar la plantilla e historial, servidas por la misma app en
+  `http://localhost:8080/`. Falta probar en un navegador los flujos con
+  clics.
 
 ## Cómo compilar y probar
 
 ```bash
 cd sim-reports
-./mvnw test   # 263 tests, 0 fallos
+./mvnw test   # 272 tests, 0 fallos
 ```
 
 `./mvnw` (Maven Wrapper) descarga Maven 3.9.16 la primera vez, verificando
@@ -35,11 +38,36 @@ No hace falta tener PostgreSQL instalado para los tests: los de
 persistencia levantan un PostgreSQL 18 embebido (`io.zonky.test:embedded-postgres`),
 cuyos binarios se descargan de Maven Central en la primera ejecución.
 
-Para **ejecutar** la app sí se necesita un PostgreSQL. La conexión se
-configura con `SIMREPORTS_DB_URL`, `SIMREPORTS_DB_USER` y
-`SIMREPORTS_DB_PASSWORD` (valores por defecto en
-`src/main/resources/application.yml`). El esquema lo crea Flyway al
-arrancar (`src/main/resources/db/migration`).
+## Cómo ejecutar la app
+
+Se necesita Java 21+ y un PostgreSQL. La configuración va **solo por
+variables de entorno** (no hay perfiles); los valores por defecto están en
+`src/main/resources/application.yml`:
+
+| Variable | Qué es | Por defecto |
+|---|---|---|
+| `SIMREPORTS_DB_URL` | URL JDBC de PostgreSQL | `jdbc:postgresql://localhost:5432/sim_reports` |
+| `SIMREPORTS_DB_USER` | usuario de la base | `sim_reports` |
+| `SIMREPORTS_DB_PASSWORD` | contraseña de la base | `sim_reports` |
+| `SIMREPORTS_DATOS_DIR` | carpeta donde se guardan las plantillas y los reportes `.xlsx` | `./datos` |
+| `SERVER_PORT` | puerto HTTP (variable estándar de Spring Boot) | `8080` |
+
+```bash
+cd sim-reports
+./mvnw package -DskipTests
+SIMREPORTS_DB_URL=jdbc:postgresql://localhost:5432/sim_reports \
+SIMREPORTS_DB_USER=sim_reports SIMREPORTS_DB_PASSWORD='***' \
+SIMREPORTS_DATOS_DIR=/ruta/a/datos \
+java -jar target/sim-reports-0.1.0-SNAPSHOT.jar
+```
+
+Con la app corriendo, la pantalla está en `http://localhost:8080/` (o el
+puerto de `SERVER_PORT`).
+
+El esquema lo crea Flyway al arrancar (`src/main/resources/db/migration`).
+En un servidor se usan las mismas variables (en el servicio de systemd, en
+Docker, etc.). La carpeta de datos contiene archivos reales de clientes:
+respáldala junto con la base, porque la base solo guarda las rutas.
 
 ### Endpoints de la plantilla
 
@@ -77,6 +105,7 @@ motor de coincidencia, modelo de datos/API y el flujo de trabajo.
 `09-analisis-octubre-2026.md` compara el motor contra el reporte real de
 octubre y lista las decisiones pendientes; `10-registro-decisiones.md`
 guarda las decisiones de negocio ya tomadas.
+`11-fase3-ui.md` describe la pantalla web y lleva su checklist.
 
 Los archivos reales de clientes van en `archivos/` (raíz), que está en
 `.gitignore`: nunca se suben al repo.

@@ -285,6 +285,29 @@
   `CONSUMOS_OCTUBRE_2026.xlsx`. Al generar el reporte se indica el mes y el
   año.
 
+## D-022 — Consumos con dos decimales, truncados (sin redondear)
+
+- **Fecha:** 2026-11-09
+- **Caso:** al revisar el reporte de octubre, el usuario vio que unas tablas
+  redondeaban y otras no:
+  - BD_ATT trae los consumos como texto (p. ej. `208.999`), y su `BUSCARV`
+    los mostraba completos;
+  - la app los escribía como número con formato `#,##0.00`, que Excel
+    muestra redondeado (`209.00`);
+  - los consumos de Alestra traen muchos decimales;
+  - una celda (KUEHENE NAGEL) tenía formato sin decimales (`#,##0`).
+- **Decisión:** cada consumo se deja con **dos decimales, truncados**, como
+  viene en la BD: `208.999 → 208.99`, `4321.9876 → 4321.98`, `27.39 → 27.39`.
+  - Se aplica una sola vez, al entrar los consumos al motor (`ConsumoMb`),
+    así que totales, consistencia, reporte final y `.xlsx` usan los mismos
+    números.
+  - Toda celda de consumo escrita queda con formato `#,##0.00`, sin perder
+    el resto de su estilo.
+- **Nota (PETCO, 2026-11-09):** la diferencia 27.39 vs 28.34 no era de
+  cálculo: el primer `.xlsx` de prueba se generó con la descarga de Telcel
+  del 5 de noviembre, que ya traía 0.95 MB más en ese ICCID. Con los mismos
+  datos de BD_TELCEL, la app da 27.39.
+
 ---
 
 ## Regla general (confirmada el 2026-11-05)

@@ -6,6 +6,7 @@ import com.simreports.core.matching.ResultadoTabla;
 import com.simreports.core.plantilla.PlantillaLeida;
 import com.simreports.core.plantilla.TablaLeida;
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.FormulaEvaluator;
 import org.apache.poi.ss.usermodel.Row;
@@ -17,8 +18,10 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -31,8 +34,9 @@ import java.util.Objects;
  *       {@code CONSUMO(MB)_1} y {@code CONSUMO(MB)_2} en las dual. Reemplaza
  *       lo que hubiera: la fórmula {@code BUSCARV}, un valor escrito a mano
  *       o un texto. Sin coincidencia se escribe 0, aunque la celda tuviera un
- *       valor fijo, porque ese valor es del mes anterior (D-015). Se conserva
- *       el formato de la celda.</li>
+ *       valor fijo, porque ese valor es del mes anterior (D-015). El valor ya
+ *       viene truncado a dos decimales (D-022) y la celda queda con formato
+ *       {@value #FORMATO_CONSUMO}; el resto del estilo se conserva.</li>
  *   <li>Lo que está fuera de las tablas no se toca (p. ej. el bloque
  *       STARLINK de METROBÚS, D-017).</li>
  *   <li>Se quitan las hojas {@code BD_*}: traen datos del mes anterior y,
@@ -46,6 +50,9 @@ import java.util.Objects;
  * independiente ({@code VerificadorReporteEscrito}).</p>
  */
 public final class EscritorReporte {
+
+    /** Formato de número de toda celda de consumo escrita (D-022). */
+    static final String FORMATO_CONSUMO = "#,##0.00";
 
     /**
      * @param plantilla  el .xlsx de la versión de plantilla usada.
@@ -64,8 +71,9 @@ public final class EscritorReporte {
         try (XSSFWorkbook libro = new XSSFWorkbook(new ByteArrayInputStream(plantilla));
              ByteArrayOutputStream salida = new ByteArrayOutputStream()) {
             int celdas = 0;
+            EstilosConsumo estilos = new EstilosConsumo(libro);
             for (int t = 0; t < resultados.size(); t++) {
-                celdas += escribirTabla(libro, leida.tablas().get(t), resultados.get(t));
+                celdas += escribirTabla(libro, leida.tablas().get(t), resultados.get(t), estilos);
             }
             quitarHojasBd(libro);
             int sinRecalcular = recalcularFormulas(libro);
@@ -107,7 +115,8 @@ public final class EscritorReporte {
         }
     }
 
-    private static int escribirTabla(XSSFWorkbook libro, TablaLeida tabla, ResultadoTabla resultado) {
+    private static int escribirTabla(XSSFWorkbook libro, TablaLeida tabla, ResultadoTabla resultado,
+                                     EstilosConsumo estilos) {
         XSSFSheet hoja = libro.getSheet(tabla.mapeo().hoja());
         List<FilaPlantilla> filas = tabla.tablaConFilas().filas();
         if (hoja == null || resultado.filas().size() != filas.size()) {
@@ -119,18 +128,18 @@ public final class EscritorReporte {
             int fila = filas.get(i).filaExcel() - 1;
             ResultadoFilaPlantilla r = resultado.filas().get(i);
             if (r.consumo() != null) {
-                escribir(hoja, fila, tabla.indiceColumnaPorCampoLogico().get("CONSUMO(MB)"), r.consumo().consumoMb());
+                escribir(hoja, estilos, fila, tabla.indiceColumnaPorCampoLogico().get("CONSUMO(MB)"), r.consumo().consumoMb());
                 celdas++;
             } else {
-                escribir(hoja, fila, tabla.indiceColumnaPorCampoLogico().get("CONSUMO(MB)_1"), r.consumo1().consumoMb());
-                escribir(hoja, fila, tabla.indiceColumnaPorCampoLogico().get("CONSUMO(MB)_2"), r.consumo2().consumoMb());
+                escribir(hoja, estilos, fila, tabla.indiceColumnaPorCampoLogico().get("CONSUMO(MB)_1"), r.consumo1().consumoMb());
+                escribir(hoja, estilos, fila, tabla.indiceColumnaPorCampoLogico().get("CONSUMO(MB)_2"), r.consumo2().consumoMb());
                 celdas += 2;
             }
         }
         return celdas;
     }
 
-    private static void escribir(XSSFSheet hoja, int fila, Integer columna, double valor) {
+    private static void escribir(XSSFSheet hoja, EstilosConsumo estilos, int fila, Integer columna, double valor) {
         Objects.requireNonNull(columna, "la tabla no tiene columna de consumo");
         Row row = hoja.getRow(fila) == null ? hoja.createRow(fila) : hoja.getRow(fila);
         Cell celda = row.getCell(columna) == null ? row.createCell(columna) : row.getCell(columna);
@@ -138,6 +147,35 @@ public final class EscritorReporte {
             celda.removeFormula();
         }
         celda.setCellValue(valor);
+        celda.setCellStyle(estilos.conDosDecimales(celda.getCellStyle()));
+    }
+
+    /**
+     * Da a cada estilo de celda de consumo el formato {@value #FORMATO_CONSUMO}
+     * sin perder lo demás (fuente, bordes, relleno). Reutiliza una copia por
+     * estilo original para no multiplicar estilos en el libro.
+     */
+    private static final class EstilosConsumo {
+        private final XSSFWorkbook libro;
+        private final short formato;
+        private final Map<Integer, CellStyle> copias = new HashMap<>();
+
+        EstilosConsumo(XSSFWorkbook libro) {
+            this.libro = libro;
+            this.formato = libro.createDataFormat().getFormat(FORMATO_CONSUMO);
+        }
+
+        CellStyle conDosDecimales(CellStyle original) {
+            if (FORMATO_CONSUMO.equals(original.getDataFormatString())) {
+                return original;
+            }
+            return copias.computeIfAbsent((int) original.getIndex(), indice -> {
+                CellStyle copia = libro.createCellStyle();
+                copia.cloneStyleFrom(original);
+                copia.setDataFormat(formato);
+                return copia;
+            });
+        }
     }
 
     private static void quitarHojasBd(XSSFWorkbook libro) {

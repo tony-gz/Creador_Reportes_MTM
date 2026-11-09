@@ -70,7 +70,12 @@ class EscritorReporteTest {
             f.setCellFormula("IFERROR(VLOOKUP(B2,Z1:Z2,2,FALSE),0)");
             f.setCellStyle(estilo);
             Row r2 = fila(gepp, 2, "ALESTRA", "5511110002", null, "NA");
-            r2.getCell(3).setCellStyle(estilo);
+            CellStyle sinDecimales = libro.createCellStyle(); // como KUEHENE NAGEL: "#,##0" y en negritas
+            sinDecimales.setDataFormat(libro.createDataFormat().getFormat("#,##0"));
+            org.apache.poi.ss.usermodel.Font negritas = libro.createFont();
+            negritas.setBold(true);
+            sinDecimales.setFont(negritas);
+            r2.getCell(3).setCellStyle(sinDecimales);
             Row r3 = fila(gepp, 3, "TELCEL", null, "89520700000000000011");
             r3.createCell(3).setCellValue(14.65); // valor del RMS del mes pasado
             r3.getCell(3).setCellStyle(estilo);
@@ -126,8 +131,22 @@ class EscritorReporteTest {
             assertEquals(0.0, gepp.getRow(3).getCell(3).getNumericCellValue()); // era 14.65 (D-015)
             for (int r = 1; r <= 3; r++) {
                 assertEquals(formatoConsumo, gepp.getRow(r).getCell(3).getCellStyle().getDataFormat(),
-                        "conserva el formato de la celda en la fila " + (r + 1));
+                        "formato de dos decimales en la fila " + (r + 1));
             }
+        }
+    }
+
+    @Test
+    void todaCeldaDeConsumoQuedaConDosDecimalesSinPerderElRestoDelEstilo() throws IOException {
+        try (XSSFWorkbook libro = escribirYAbrir()) {
+            // "#,##0" en negritas → "#,##0.00" en negritas (D-022)
+            CellStyle antesSinDecimales = libro.getSheet("GEPP").getRow(2).getCell(3).getCellStyle();
+            assertEquals("#,##0.00", antesSinDecimales.getDataFormatString());
+            assertTrue(libro.getFontAt(antesSinDecimales.getFontIndex()).getBold());
+            // Celdas sin estilo (General) de la tabla dual
+            Row d = libro.getSheet("BIMBO").getRow(1);
+            assertEquals("#,##0.00", d.getCell(2).getCellStyle().getDataFormatString());
+            assertEquals("#,##0.00", d.getCell(3).getCellStyle().getDataFormatString());
         }
     }
 
