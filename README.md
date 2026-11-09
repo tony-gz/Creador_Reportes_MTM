@@ -19,18 +19,18 @@ App para automatizar los reportes mensuales de consumo de datos SIM de MTM.
   entorno.
 - **Fase 3 — Web UI**: lista (spec 11), servida por la misma app en
   `http://localhost:8080/`.
-- **Fase 4 — En línea** (spec 12): en curso (1/7).
-  - Punto 1 hecho: la app **ya no guarda archivos ni datos de clientes**
-    (D-023). Cada corrida sube la plantilla y los 3 archivos, y devuelve el
-    `.xlsx`.
-  - Faltan: usuarios con superadmin, registro de actividad y despliegue en
+- **Fase 4 — En línea** (spec 12): en curso (2/7).
+  - La app **ya no guarda archivos ni datos de clientes** (D-023). Cada
+    corrida sube la plantilla y los 3 archivos, y devuelve el `.xlsx`.
+  - Inicio de sesión con usuario y contraseña (D-024, D-026).
+  - Faltan: pantallas del superadmin, registro de actividad y despliegue en
     Render + Neon.
 
 ## Cómo compilar y probar
 
 ```bash
 cd sim-reports
-./mvnw test   # 243 tests, 0 fallos
+./mvnw test   # 266 tests, 0 fallos
 ```
 
 `./mvnw` (Maven Wrapper) descarga Maven 3.9.16 la primera vez, verificando
@@ -51,6 +51,10 @@ variables de entorno** (no hay perfiles); los valores por defecto están en
 | `SIMREPORTS_DB_URL` | URL JDBC de PostgreSQL | `jdbc:postgresql://localhost:5432/sim_reports` |
 | `SIMREPORTS_DB_USER` | usuario de la base | `sim_reports` |
 | `SIMREPORTS_DB_PASSWORD` | contraseña de la base | `sim_reports` |
+| `SIMREPORTS_ADMIN_USUARIO` | primer superadmin; solo se usa si no hay ningún usuario | — |
+| `SIMREPORTS_ADMIN_PASSWORD` | su contraseña temporal (mín. 10 caracteres; se cambia al entrar) | — |
+| `SIMREPORTS_ADMIN_NOMBRE` | su nombre para mostrar | `Administrador` |
+| `SIMREPORTS_COOKIE_SEGURA` | cookie de sesión solo por HTTPS; `false` únicamente para un host sin HTTPS que no sea `localhost` | `true` |
 | `SERVER_PORT` | puerto HTTP (variable estándar de Spring Boot) | `8080` |
 
 ```bash
@@ -58,6 +62,7 @@ cd sim-reports
 ./mvnw package -DskipTests
 SIMREPORTS_DB_URL=jdbc:postgresql://localhost:5432/sim_reports \
 SIMREPORTS_DB_USER=sim_reports SIMREPORTS_DB_PASSWORD='***' \
+SIMREPORTS_ADMIN_USUARIO=tony SIMREPORTS_ADMIN_PASSWORD='***' \
 java -jar target/sim-reports-0.1.0-SNAPSHOT.jar
 ```
 
@@ -69,6 +74,19 @@ En un servidor se usan las mismas variables. La app no guarda archivos:
 descarga el reporte y guárdalo tú.
 
 ### Endpoints
+
+Todos piden sesión y, si cambian algo, el token CSRF: la cookie `XSRF-TOKEN`
+en la cabecera `X-XSRF-TOKEN`. Con curl:
+
+```bash
+curl -c c.txt -b c.txt http://localhost:8080/api/sesion/csrf
+T=$(awk '$6=="XSRF-TOKEN"{print $7}' c.txt)
+curl -c c.txt -b c.txt -H "X-XSRF-TOKEN: $T" -d usuario=tony -d password='***' \
+     http://localhost:8080/api/sesion/entrar
+T=$(awk '$6=="XSRF-TOKEN"{print $7}' c.txt)   # el token cambia al entrar
+```
+
+Después, en cada llamada: `-c c.txt -b c.txt -H "X-XSRF-TOKEN: $T"`.
 
 ```bash
 curl -F plantilla=@CONSUMOS_SEPTIEMBRE_2026.xlsx \

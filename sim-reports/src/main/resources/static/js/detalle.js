@@ -169,6 +169,6 @@ function seccionTexto(texto) {
   return el('section', { class: 'tarjeta' },
     el('details', {},
       el('summary', {}, 'Texto completo del reporte final'),
-      el('div', { class: 'acciones', style: 'margin: 12px 0' }, copiar, estado),
+      el('div', { class: 'acciones espaciado' }, copiar, estado),
       el('pre', { class: 'reporte' }, texto)));
 }

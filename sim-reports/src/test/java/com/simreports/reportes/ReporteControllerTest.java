@@ -1,6 +1,11 @@
 package com.simreports.reportes;
 
 import com.simreports.PostgresEmbebido;
+import com.simreports.SesionesDePrueba;
+import com.simreports.usuarios.Rol;
+import com.simreports.usuarios.UsuarioService;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +21,7 @@ import java.io.ByteArrayInputStream;
 import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
@@ -32,20 +38,29 @@ class ReporteControllerTest extends PostgresEmbebido {
 
     @Autowired
     private MockMvc mvc;
+    @Autowired
+    private UsuarioService usuarios;
 
     private final JsonMapper json = JsonMapper.builder().build();
+    private RequestPostProcessor sesion;
 
-    private static MockMultipartHttpServletRequestBuilder solicitud(String anio, String mes, byte[] plantilla, byte[] telcel) {
+    @BeforeEach
+    void entrar() {
+        sesion = SesionesDePrueba.sesion(SesionesDePrueba.usuarioListo(usuarios, "reportes.prueba", Rol.USUARIO));
+    }
+
+    private MockMultipartHttpServletRequestBuilder solicitud(String anio, String mes, byte[] plantilla, byte[] telcel) {
         MockMultipartHttpServletRequestBuilder s = multipart("/api/reportes")
                 .file(new MockMultipartFile("plantilla", "CONSUMOS_SEPTIEMBRE_2026.xlsx", null, plantilla))
                 .file(new MockMultipartFile("alestra", "Tráfico por línea.xlsx", null, ArchivosDePrueba.alestra()))
                 .file(new MockMultipartFile("telcel", "Uso_de_datos.csv", "text/csv", telcel))
                 .file(new MockMultipartFile("att", "att.csv", "text/csv", ArchivosDePrueba.att()));
         s.param("anio", anio).param("mes", mes);
+        s.with(sesion).with(csrf());
         return s;
     }
 
-    private static MockMultipartHttpServletRequestBuilder solicitud(String mes) {
+    private MockMultipartHttpServletRequestBuilder solicitud(String mes) {
         return solicitud("2026", mes, ArchivosDePrueba.plantilla(), ArchivosDePrueba.telcel());
     }
 
@@ -94,7 +109,7 @@ class ReporteControllerTest extends PostgresEmbebido {
         mvc.perform(solicitud("2026", "10", new byte[0], ArchivosDePrueba.telcel()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.problemas[0]").value("El archivo de la plantilla está vacío."));
-        mvc.perform(multipart("/api/reportes").param("anio", "2026").param("mes", "10"))
+        mvc.perform(multipart("/api/reportes").param("anio", "2026").param("mes", "10").with(sesion).with(csrf()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.problemas", hasSize(1)));
     }

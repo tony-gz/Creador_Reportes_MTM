@@ -86,7 +86,7 @@ h4 { font-size: 15px; margin: 16px 0 8px; }
 .campo { display: grid; gap: 4px; min-width: 180px; flex: 1; }
 .campo label, .etiqueta { font-weight: 600; font-size: 14px; }
 .ayuda { color: var(--texto-suave); font-size: 13px; }
-input[type="file"], input[type="number"], select {
+input[type="file"], input[type="number"], input[type="text"], input[type="password"], select {
   font: inherit; color: inherit; background: var(--superficie); border: 1px solid var(--borde);
   border-radius: 6px; padding: 7px 9px; width: 100%;
 }
@@ -149,8 +149,15 @@ pre.reporte {
   background: var(--superficie-2); border-radius: var(--radio); padding: 12px; overflow: auto;
   font: 13px/1.45 var(--mono); max-height: 520px; white-space: pre;
 }
-.editor-mapeo { background: var(--superficie-2); }
-.editor-mapeo .fila-campos .campo { min-width: 160px; }
+.espaciado { margin: 12px 0; }
+
+/* ---------- Sesión (Fase 4, spec 12) ---------- */
+.usuario-barra { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.usuario-barra .quien { color: var(--texto-suave); font-size: 14px; }
+.pagina-entrar { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+.tarjeta-entrar { width: 100%; max-width: 380px; margin: 0; }
+.tarjeta-entrar h1 { font-size: 20px; margin: 0 0 4px; }
+.formulario-angosto { max-width: 420px; }
 .vacio { color: var(--texto-suave); font-style: italic; }
 
 @media (max-width: 600px) {

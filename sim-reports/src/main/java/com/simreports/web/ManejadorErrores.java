@@ -40,6 +40,11 @@ public class ManejadorErrores extends ResponseEntityExceptionHandler {
                 List.of(e.getMessage()));
     }
 
+    @ExceptionHandler(SolicitudInvalidaException.class)
+    public ProblemDetail solicitudInvalida(SolicitudInvalidaException e) {
+        return problema(HttpStatus.BAD_REQUEST, "Datos inválidos", e.getMessage(), e.getProblemas());
+    }
+
     @ExceptionHandler(ArchivoFormatoInvalidoException.class)
     public ProblemDetail archivoInvalido(ArchivoFormatoInvalidoException e) {
         return problema(HttpStatus.BAD_REQUEST, "Archivo con formato inválido", e.getMessage(),

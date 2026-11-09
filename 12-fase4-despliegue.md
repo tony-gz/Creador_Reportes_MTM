@@ -68,11 +68,14 @@ Usar la app desde cualquier computadora:
       corriendo y los archivos reales de octubre: la respuesta tarda unos
       2 s, los totales cuadran y la base queda solo con la tabla de
       Flyway.*
-- [ ] 2. **Usuarios e inicio de sesión:**
+- [x] 2. **Usuarios e inicio de sesión:**
       - tabla de usuarios, Spring Security, pantalla de entrada, salir;
       - cambio de contraseña obligatorio, bloqueo por intentos, CSRF en el
         cliente;
       - superadmin inicial.
+
+      *Hecho el 2026-11-09. `./mvnw test`: 266/266. Detalle abajo, en
+      "Notas del punto 2".*
 - [ ] 3. **Pantallas del superadmin:** usuarios (crear, activar o desactivar,
       restablecer contraseña) y actividad.
 - [ ] 4. **Registro de actividad** en cada acción.
@@ -83,3 +86,52 @@ Usar la app desde cualquier computadora:
 - [ ] 6. **Guía** paso a paso: Neon, Render, variables de entorno y ping;
       PR de `correcciones-revision` a `main`.
 - [ ] 7. **Prueba en línea** con los archivos reales.
+
+## Notas del punto 2 (2026-11-09)
+- **Base:** migración V4, tabla `usuario`:
+  - nombre en minúsculas y único;
+  - hash BCrypt;
+  - rol `SUPERADMIN` o `USUARIO`;
+  - activo y contraseña temporal;
+  - intentos fallidos y bloqueo;
+  - `version_credenciales`, que sube con cada cambio de contraseña y cierra
+    las demás sesiones.
+- **Endpoints:**
+  - `GET /api/sesion/csrf`: deja la cookie `XSRF-TOKEN`; no pide sesión.
+  - `POST /api/sesion/entrar`, con los campos `usuario` y `password`:
+    - `200` con `{"usuario","nombreCompleto","rol","debeCambiarPassword"}`;
+    - `401` si no entra. El mensaje es el mismo si el usuario no existe,
+      está desactivado o la contraseña es incorrecta; el bloqueo sí se
+      avisa.
+  - `GET /api/sesion`: quién soy.
+  - `POST /api/sesion/password`, con `{"actual","nueva"}`.
+  - `POST /api/sesion/salir`: `204`.
+- **Filtro `UsuarioVigenteFiltro`:** en cada llamada a la API revisa al
+  usuario en la base.
+  - Si lo desactivaron, le cambiaron la contraseña o el rol, cierra la
+    sesión (`401`).
+  - Con contraseña temporal solo deja cambiarla (`403` en lo demás).
+- **CSRF para páginas con JavaScript (`csrf.spa()`):** cookie `XSRF-TOKEN`
+  y cabecera `X-XSRF-TOKEN`.
+- **Política de contenido estricta:** solo scripts y estilos propios, sin
+  estilos en línea. `PaginaWebTest` lo vigila.
+- **Superadmin inicial:** `SIMREPORTS_ADMIN_USUARIO`,
+  `SIMREPORTS_ADMIN_PASSWORD` y, opcional, `SIMREPORTS_ADMIN_NOMBRE`.
+  - Solo se usan si no hay ningún usuario.
+  - Una contraseña de menos de 10 caracteres detiene el arranque con el
+    motivo.
+- **Pantallas:**
+  - `entrar.html`;
+  - "Mi cuenta" (`#cuenta`), con cambio de contraseña;
+  - en la barra: nombre, "Mi cuenta" y "Salir".
+- **Probado con el `.jar` real** (curl con cookies):
+  - sin sesión, la raíz manda a la pantalla de entrada;
+  - entrar sin token CSRF da `403`;
+  - contraseña incorrecta, `401`;
+  - con contraseña temporal, revisar la plantilla da `403`;
+  - después de cambiarla, generar octubre da `200`;
+  - salir da `204` y, después, `401`.
+- **Riesgo aceptado:** alguien que conozca un nombre de usuario puede
+  bloquearlo 15 minutos fallando 5 veces. El superadmin lo desbloquea
+  restableciendo la contraseña (punto 3).
+

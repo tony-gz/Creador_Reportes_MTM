@@ -7,12 +7,37 @@
 >   ni la carpeta de archivos en disco. La migración V3 borra esas tablas.
 > - El diseño anterior está en el historial de git (hasta el commit
 >   `e0b6dfd`).
-> - PostgreSQL queda para los usuarios y el registro de actividad (Fase 4,
->   puntos 2 a 4).
+> - PostgreSQL queda para los usuarios (V4) y el registro de actividad
+>   (Fase 4, puntos 2 a 4).
+
+## Entidades
+### Usuario (V4, Fase 4 punto 2 — spec 12)
+| Campo | Tipo | Nota |
+|---|---|---|
+| id | Long | |
+| nombreUsuario | String | minúsculas, único, 3–50 de `a-z 0-9 . _ -` |
+| nombreCompleto | String | para mostrar |
+| passwordHash | String | BCrypt |
+| passwordActualizado | timestamp | último cambio de contraseña |
+| versionCredenciales | int | sube con cada cambio: cierra las demás sesiones |
+| rol | `SUPERADMIN` / `USUARIO` | D-024 |
+| activo | boolean | |
+| debeCambiarPassword | boolean | contraseña temporal |
+| intentosFallidos, bloqueadoHasta | int, timestamp | 5 fallos → 15 min (D-026) |
+| fechaCreacion, ultimoAcceso | timestamp | |
 
 ## Endpoints REST
+Todos piden sesión salvo `GET /api/sesion/csrf` y `POST /api/sesion/entrar`.
+Los que cambian algo piden el token CSRF (cookie `XSRF-TOKEN`, cabecera
+`X-XSRF-TOKEN`).
+
 | Método | Ruta | Función |
 |---|---|---|
+| `GET` | `/api/sesion/csrf` | Deja la cookie `XSRF-TOKEN` |
+| `POST` | `/api/sesion/entrar` | Entrar (`usuario`, `password`) |
+| `GET` | `/api/sesion` | Quién soy |
+| `POST` | `/api/sesion/password` | Cambiar la contraseña propia (`{"actual","nueva"}`) |
+| `POST` | `/api/sesion/salir` | Salir |
 | `POST` | `/api/plantilla/revisar` | Ver cómo lee la app una plantilla, sin guardarla |
 | `POST` | `/api/reportes` | Subir la plantilla y las 3 BDs (Alestra, Telcel, ATT); devuelve el detalle con el `.xlsx` |
 
@@ -30,6 +55,11 @@ vez de dejar pasar excepciones crudas de Apache POI.
   - El `.xlsx` va en Base64 dentro de la respuesta: el navegador lo
     descarga y el servidor no se queda con ninguna copia.
   - `archivosEntrada` incluye la plantilla (`PLANTILLA`).
+- Sesión: `entrar` y `GET /api/sesion` → `{"usuario","nombreCompleto","rol","debeCambiarPassword"}`.
+  Sin sesión → `401`; con contraseña temporal, todo salvo `/api/sesion*` →
+  `403`; usuario desactivado o con contraseña o rol cambiados → `401` y la
+  sesión se cierra; sin token CSRF → `403`; `/api/admin/**` sin ser
+  superadmin → `403`.
 - **Errores** — `application/problem+json` (RFC 9457):
   `{"title","status","detail","problemas":[...]}`. Toda respuesta de error
   trae `problemas`.

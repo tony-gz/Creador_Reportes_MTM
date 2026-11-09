@@ -1,6 +1,9 @@
 package com.simreports.web;
 
 import com.simreports.PostgresEmbebido;
+import com.simreports.SesionesDePrueba;
+import com.simreports.usuarios.Rol;
+import com.simreports.usuarios.UsuarioService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,9 +21,11 @@ import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** La pantalla web (Fase 3, spec 11) la sirve la misma app. */
+/** La pantalla web (Fase 3, spec 11) la sirve la misma app; sin sesión solo la de entrada (spec 12). */
 @SpringBootTest
 @AutoConfigureMockMvc
 class PaginaWebTest extends PostgresEmbebido {
@@ -29,11 +34,24 @@ class PaginaWebTest extends PostgresEmbebido {
 
     @Autowired
     private MockMvc mvc;
+    @Autowired
+    private UsuarioService usuarios;
 
     @Test
-    void laRaizMuestraLaPagina() throws Exception {
-        mvc.perform(get("/")).andExpect(status().isOk()).andExpect(forwardedUrl("index.html"));
-        mvc.perform(get("/index.html"))
+    void sinSesionLaRaizLlevaALaPantallaDeEntrada() throws Exception {
+        mvc.perform(get("/")).andExpect(status().isFound()).andExpect(redirectedUrl("/entrar.html"));
+        mvc.perform(get("/index.html")).andExpect(status().isFound()).andExpect(redirectedUrl("/entrar.html"));
+        mvc.perform(get("/entrar.html"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("js/entrar.js")))
+                .andExpect(header().string("Content-Security-Policy", containsString("script-src 'self'")));
+    }
+
+    @Test
+    void conSesionLaRaizMuestraLaPagina() throws Exception {
+        var sesion = SesionesDePrueba.sesion(SesionesDePrueba.usuarioListo(usuarios, "pagina.prueba", Rol.USUARIO));
+        mvc.perform(get("/").with(sesion)).andExpect(status().isOk()).andExpect(forwardedUrl("index.html"));
+        mvc.perform(get("/index.html").with(sesion))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Reportes de consumo SIM")))
                 .andExpect(content().string(containsString("js/app.js")));
@@ -55,7 +73,19 @@ class PaginaWebTest extends PostgresEmbebido {
         for (Path modulo : modulos()) {
             assertThat(Files.readString(modulo))
                     .as(modulo.getFileName().toString())
-                    .doesNotContain("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write");
+                    .doesNotContain("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write")
+                    // Política de contenido (spec 12): sin estilos en línea.
+                    .doesNotContain("style:");
+        }
+    }
+
+    @Test
+    void lasPaginasNoTraenScriptsNiEstilosEnLinea() throws IOException {
+        for (String pagina : List.of("index.html", "entrar.html")) {
+            String html = Files.readString(ESTATICOS.resolve(pagina));
+            assertThat(html).as(pagina).doesNotContain("<style", "style=", "onclick=", "onload=");
+            assertThat(html.replaceAll("<script type=\"module\" src=\"[^\"]+\"></script>", "")).as(pagina)
+                    .doesNotContain("<script");
         }
     }
 

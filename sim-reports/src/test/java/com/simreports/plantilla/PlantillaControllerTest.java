@@ -1,6 +1,11 @@
 package com.simreports.plantilla;
 
 import com.simreports.PostgresEmbebido;
+import com.simreports.SesionesDePrueba;
+import com.simreports.usuarios.Rol;
+import com.simreports.usuarios.UsuarioService;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.util.AreaReference;
@@ -19,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -33,6 +39,15 @@ class PlantillaControllerTest extends PostgresEmbebido {
 
     @Autowired
     private MockMvc mvc;
+    @Autowired
+    private UsuarioService usuarios;
+
+    private RequestPostProcessor sesion;
+
+    @BeforeEach
+    void entrar() {
+        sesion = SesionesDePrueba.sesion(SesionesDePrueba.usuarioListo(usuarios, "plantilla.prueba", Rol.USUARIO));
+    }
 
     /** Hoja GEPP con una tabla: encabezados dados, una fila de datos. */
     private static MockMultipartFile plantilla(String... encabezados) throws IOException {
@@ -57,7 +72,7 @@ class PlantillaControllerTest extends PostgresEmbebido {
 
     @Test
     void revisarDevuelveElMapeoDeLaPlantilla() throws Exception {
-        mvc.perform(multipart("/api/plantilla/revisar").file(plantilla("SIM", "LINEA", "ICCID", "CONSUMO(MB)")))
+        mvc.perform(multipart("/api/plantilla/revisar").file(plantilla("SIM", "LINEA", "ICCID", "CONSUMO(MB)")).with(sesion).with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tablas", hasSize(1)))
                 .andExpect(jsonPath("$.tablas[0].hoja").value("GEPP"))
@@ -77,7 +92,7 @@ class PlantillaControllerTest extends PostgresEmbebido {
             sinTablas = new MockMultipartFile("plantilla", "p.xlsx", "application/octet-stream", out.toByteArray());
         }
 
-        mvc.perform(multipart("/api/plantilla/revisar").file(sinTablas))
+        mvc.perform(multipart("/api/plantilla/revisar").file(sinTablas).with(sesion).with(csrf()))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.title").value("Plantilla inválida"))
@@ -87,9 +102,9 @@ class PlantillaControllerTest extends PostgresEmbebido {
 
     @Test
     void sinArchivoOConArchivoVacioDevuelve400() throws Exception {
-        mvc.perform(multipart("/api/plantilla/revisar"))
+        mvc.perform(multipart("/api/plantilla/revisar").with(sesion).with(csrf()))
                 .andExpect(status().isBadRequest());
-        mvc.perform(multipart("/api/plantilla/revisar").file(new MockMultipartFile("plantilla", "v.xlsx", null, new byte[0])))
+        mvc.perform(multipart("/api/plantilla/revisar").file(new MockMultipartFile("plantilla", "v.xlsx", null, new byte[0])).with(sesion).with(csrf()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.problemas[0]").value("El archivo de la plantilla está vacío."));
     }

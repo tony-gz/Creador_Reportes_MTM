@@ -30,3 +30,24 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+# Sesión (D-026, spec 12): expira tras 30 min sin uso; cookie solo por HTTPS,
+# inaccesible desde JavaScript. En local por http://localhost los navegadores
+# aceptan la cookie Secure; para otro host sin HTTPS: SIMREPORTS_COOKIE_SEGURA=false.
+server:
+  # Render termina el HTTPS antes de la app y avisa con X-Forwarded-*.
+  forward-headers-strategy: native
+  servlet:
+    session:
+      timeout: 30m
+      cookie:
+        http-only: true
+        secure: ${SIMREPORTS_COOKIE_SEGURA:true}
+        same-site: lax
+
+simreports:
+  # Primer superadmin (D-024): solo se usa si no existe ningún usuario.
+  admin:
+    usuario: ${SIMREPORTS_ADMIN_USUARIO:}
+    password: ${SIMREPORTS_ADMIN_PASSWORD:}
+    nombre: ${SIMREPORTS_ADMIN_NOMBRE:Administrador}

@@ -80,24 +80,50 @@ sim-reports/
     │   │           │   ├── ReporteRespuesta.java
     │   │           │   ├── ReporteResultado.java
     │   │           │   └── ReporteService.java
+    │   │           ├── seguridad/                ← inicio de sesión (Fase 4, spec 12)
+    │   │           │   ├── ConfiguracionSeguridad.java
+    │   │           │   ├── DetallesUsuarioService.java
+    │   │           │   ├── RespuestasSeguridad.java
+    │   │           │   ├── SesionController.java
+    │   │           │   ├── SuperadminInicial.java
+    │   │           │   ├── UsuarioAutenticado.java
+    │   │           │   └── UsuarioVigenteFiltro.java
+    │   │           ├── usuarios/
+    │   │           │   ├── CambioPasswordSolicitud.java
+    │   │           │   ├── PoliticaPassword.java
+    │   │           │   ├── Rol.java
+    │   │           │   ├── SesionRespuesta.java
+    │   │           │   ├── Usuario.java
+    │   │           │   ├── UsuarioRepository.java
+    │   │           │   └── UsuarioService.java
     │   │           └── web/
-    │   │               └── ManejadorErrores.java
+    │   │               ├── ManejadorErrores.java
+    │   │               └── SolicitudInvalidaException.java
     │   └── resources/
     │       ├── application.yml
     │       ├── static/                      ← pantalla web (Fase 3, spec 11)
     │       │   ├── index.html
     │       │   ├── css/app.css
-    │       │   └── js/ (api, app, detalle, dom, formato, vista-generar, vista-plantilla)
+    │       │   └── entrar.html, js/ (api, app, detalle, dom, entrar, formato, vista-cuenta, vista-generar, vista-plantilla)
     │       └── db/
     │           └── migration/
     │               ├── V1__esquema_inicial.sql
     │               ├── V2__reporte_periodo_y_reporte_final.sql
-    │               └── V3__sin_datos_de_clientes.sql
+    │               ├── V3__sin_datos_de_clientes.sql
+    │               └── V4__usuarios.sql
     └── test/
         ├── java/
         │   └── com/
         │       └── simreports/
         │           ├── PostgresEmbebido.java
+        │           ├── RelojDePrueba.java
+        │           ├── SesionesDePrueba.java
+        │           ├── seguridad/
+        │           │   ├── CsrfRealTest.java
+        │           │   ├── SeguridadTest.java
+        │           │   └── SuperadminInicialTest.java
+        │           ├── usuarios/
+        │           │   └── PoliticaPasswordTest.java
         │           ├── web/
         │           │   └── PaginaWebTest.java
         │           ├── core/
@@ -139,7 +165,7 @@ sim-reports/
 
 ÚLTIMO RESULTADO CONOCIDO: ./mvnw test → BUILD SUCCESS, 266 tests, 0 fallos (2026-11-09).
 FASE 1 COMPLETA. FASE 2 COMPLETA (7/7). FASE 3: pantalla web lista (spec 11).
-FASE 4 (spec 12): punto 1 de 7 (la app ya no guarda archivos ni datos de clientes, D-023).
+FASE 4 (spec 12): puntos 1 y 2 de 7 (sin datos de clientes, D-023; inicio de sesión, D-024/D-026).
 
 NOTAS PARA OPENCODE
 - Crear/completar exactamente esta estructura (carpetas + los archivos
