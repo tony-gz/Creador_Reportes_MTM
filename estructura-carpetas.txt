@@ -24,6 +24,7 @@ sim-reports/
     │   │           │   ├── TipoAviso.java
     │   │           │   ├── matching/
     │   │           │   │   ├── AdvertenciaConsistencia.java
+    │   │           │   │   ├── AparicionSim.java
     │   │           │   │   ├── Asignacion.java
     │   │           │   │   ├── CombinadorTelcelAtt.java
     │   │           │   │   ├── ContextoFila.java
@@ -32,12 +33,15 @@ sim-reports/
     │   │           │   │   ├── FuenteConsumo.java
     │   │           │   │   ├── MotorCoincidencia.java
     │   │           │   │   ├── NoEncontrado.java
-    │   │           │   │   ├── PrimeraCoincidenciaGanaReglaAmbigua.java
+    │   │           │   │   ├── OperadorPlantilla.java
+    │   │           │   │   ├── PrimeraEnLaHojaGanaReglaAmbigua.java
     │   │           │   │   ├── ReglaAmbigua.java
+    │   │           │   │   ├── ReporteFinalCorrida.java
     │   │           │   │   ├── ResolucionAmbigua.java
     │   │           │   │   ├── ResultadoFilaPlantilla.java
     │   │           │   │   ├── ResultadoMatching.java
     │   │           │   │   ├── ResultadoTabla.java
+    │   │           │   │   ├── SimRepetida.java
     │   │           │   │   ├── TablaConFilas.java
     │   │           │   │   ├── TotalesFuente.java
     │   │           │   │   └── VerificadorReporteEscrito.java
@@ -80,7 +84,9 @@ sim-reports/
         │           │   ├── matching/
         │           │   │   ├── CombinadorTelcelAttTest.java
         │           │   │   ├── MotorCoincidenciaTest.java
+        │           │   │   ├── OperadorPlantillaTest.java
         │           │   │   ├── ReglaAmbiguaTest.java
+        │           │   │   ├── ReporteFinalCorridaTest.java
         │           │   │   └── VerificadorReporteEscritoTest.java
         │           │   ├── parsers/
         │           │   │   ├── AlestraHeaderResolverTest.java

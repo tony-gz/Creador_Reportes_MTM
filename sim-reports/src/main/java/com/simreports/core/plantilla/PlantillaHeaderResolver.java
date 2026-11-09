@@ -15,6 +15,10 @@ import java.util.Set;
  * no hace falta un diccionario de sinónimos como en los parsers de
  * origen (spec 02), solo verificar que el encabezado normalizado sea uno
  * de los campos lógicos esperados.</p>
+ *
+ * <p>Única excepción: la columna del operador se llama {@code SIM} en casi
+ * todas las hojas y {@code Carrier} en TIENDAS EXTRA; las dos resuelven al
+ * campo lógico {@code SIM} (decisión D-016, spec 10).</p>
  */
 public class PlantillaHeaderResolver implements HeaderResolver {
 
@@ -26,6 +30,7 @@ public class PlantillaHeaderResolver implements HeaderResolver {
      * {@code CONSUMO(MB)_1}, {@code CONSUMO(MB)_2}).
      */
     private static final Set<String> CAMPOS_LOGICOS = Set.of(
+            "SIM",
             "LINEA",
             "LINEA_1",
             "LINEA_2",
@@ -35,9 +40,15 @@ public class PlantillaHeaderResolver implements HeaderResolver {
             "CONSUMO(MB)_2"
     );
 
+    /** Nombre alterno de la columna {@code SIM} (operador de la SIM). */
+    private static final String SINONIMO_SIM = "CARRIER";
+
     @Override
     public Optional<String> resolver(String headerReal) {
         String normalizado = HeaderResolver.normalizar(headerReal);
+        if (SINONIMO_SIM.equals(normalizado)) {
+            return Optional.of("SIM");
+        }
         if (CAMPOS_LOGICOS.contains(normalizado)) {
             return Optional.of(normalizado);
         }

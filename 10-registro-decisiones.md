@@ -129,6 +129,114 @@
   255). Con el número correcto, Extra_74 recupera **155.12 MB** de octubre
   que hoy estaban en "consumo sin cliente", y ya no hay duplicado.
 
+## D-010 — Telcel en METROBÚS y DICONSA: consumo aproximado del RMS de Teltonika
+
+> *El efecto en el escritor ("no debe borrarlos") quedó reemplazado por
+> D-015: esas filas van en 0. El resto de D-010 sigue vigente.*
+
+- **Fecha:** 2026-11-09
+- **Caso:** 21 filas de **METROBÚS** y 4 de **DICONSA** (`LINEA_2`, filas
+  199-202) con SIMs de Telcel cuyo consumo no viene en ningún archivo de
+  operador. En octubre llevan un valor escrito a mano (spec 09).
+- **Decisión:** esos valores los saca el usuario del **RMS de Teltonika**
+  (consumo aproximado en MB que reporta el router). No hay BD del operador
+  para esas SIMs.
+- **Efecto en la app:**
+  - La app no puede calcularlos. El escritor del reporte (Fase 2, punto 4)
+    **no debe borrarlos** al poner 0 en las filas sin coincidencia (ver la
+    propuesta en spec 08, punto 4).
+  - **Tarea futura:** integrar la **API de Teltonika RMS** para consultar ese
+    consumo automáticamente (spec 08, "Tareas futuras").
+- **Sigue pendiente:** STARLINK en METROBÚS (también valor manual, sin
+  línea ni ICCID de operador).
+
+## D-011 — Consumo sin cliente: lista en el reporte final de la app
+
+- **Fecha:** 2026-11-09
+- **Caso:** claves con consumo en las fuentes que no están en ninguna hoja de
+  la plantilla. En octubre: 42 líneas de Alestra; con la plantilla corregida
+  (D-012) quedan **40 líneas, 181,433.84 MB**, porque D-007 y D-009
+  recuperaron 2. Además, 1 ICCID de Telcel (5.81 MB) y 9 de ATT (0 MB).
+- **Decisión:** el usuario quiere verlas **como lista en el reporte final**
+  de cada corrida para revisar cuáles son.
+- **Efecto en la app:** sección 4 de `ReporteFinalCorrida` ("Consumo sin
+  cliente"): por fuente, de mayor a menor consumo, con conteo y total.
+
+## D-012 — La plantilla corregida es la plantilla oficial
+
+- **Fecha:** 2026-11-09
+- **Decisión:** `archivos/CONSUMOS_OCTUBRE_2026_corregido.xlsx` (correcciones
+  D-002, D-007 y D-009) se adopta como la plantilla oficial.
+
+## D-013 — Resto de SIMs repetidas: se aplica la regla general
+
+- **Fecha:** 2026-11-09
+- **Decisión:** "si están en hojas diferentes guardarlas, pero si están en la
+  misma hoja, mantener el primero (excepto las que ya revisé)". Los casos ya
+  revisados están corregidos en la plantilla oficial (D-002, D-007, D-009) o
+  coinciden con la regla (D-003 a D-005). Los demás siguen D-001 / D-006 sin
+  corrección.
+- **Implementado** el 2026-11-09 (`PrimeraEnLaHojaGanaReglaAmbigua`, reporte
+  final `ReporteFinalCorrida`). Corrida de octubre con la plantilla oficial:
+  5 SIMs repetidas dentro de una hoja, 1 entre hojas (ALSEA fila 18 / BIMBO
+  fila 12), consistencia de totales cuadrada.
+- **Caso a confirmar — TIENDAS EXTRA filas 283 y 286** (10,128.70 MB) — *resuelto en D-014*:
+  - **fila 283** — unidad marcada como cambio, LINEA "pendiente", ICCID con
+    la F de relleno;
+  - **fila 286** — otra unidad, el mismo ICCID sin la F.
+  En el reporte manual de octubre el `BUSCARV` no encontró la fila 283 (por
+  la F) y el consumo quedó en la **286**. La app quita la F, así que la 283
+  es la primera aparición y **la app le asigna el consumo a la 283**. Si la
+  fila válida es la 286, se corrige la plantilla (`NA` en el ICCID o en la
+  LINEA de la 283, como D-002).
+
+## D-014 — TIENDAS EXTRA fila 283 ("pendiente") va en 0; el consumo es de la fila 286
+
+- **Fecha:** 2026-11-09
+- **Caso:** el de D-013: el mismo ICCID en la **fila 283** (LINEA
+  "pendiente") y en la **fila 286**.
+- **Decisión:** la fila que dice "pendiente" (283) va en **0**; la **286**
+  conserva el consumo (10,128.70 MB en octubre), como en el reporte manual.
+- **Efecto:** corrección en la plantilla oficial: el **ICCID** de la fila 283
+  pasa de el ICCID (con la F de relleno) a `NA`. La LINEA ya decía "pendiente", así que la
+  cascada buscaba por ICCID; con `NA` ya no coincide y ya no es duplicado.
+
+## D-015 — Filas sin coincidencia van en 0, aunque traigan un valor escrito a mano
+
+- **Fecha:** 2026-11-09
+- **Caso:** filas que la app no encuentra en ningún archivo de operador y que
+  en la plantilla traen un valor fijo: los aproximados del RMS de Teltonika
+  (METROBÚS, DICONSA; D-010), STARLINK, y textos como `DESACTIVADO` o `NA`.
+- **Decisión:** el escritor del reporte pone **0** en todas esas filas.
+  **No** conserva el valor anterior.
+- **Motivo:** el valor que trae la plantilla es **el del mes pasado**;
+  conservarlo reportaría un consumo viejo como si fuera del mes actual.
+- **Efecto en la app:** regla única para el escritor (Fase 2, punto 4): toda
+  celda de consumo se escribe con lo que da el motor (0 sin coincidencia).
+  El verificador del reporte escrito no necesita casos especiales. Los
+  valores del RMS los captura el usuario después, hasta que exista la API
+  de Teltonika (D-010).
+
+## D-016 — La columna SIM / Carrier decide dónde se busca la SIM
+
+- **Fecha:** 2026-11-09
+- **Caso:** la app buscaba en cascada (línea en Alestra y, si no estaba,
+  ICCID en Telcel + ATT) sin mirar el operador de la fila. Una fila de
+  Alestra con un ICCID de Telcel por error se llevaba consumo de Telcel.
+- **Decisión:** usar la columna `SIM` (o `Carrier`, en TIENDAS EXTRA):
+  - **ALESTRA** → solo por **número de línea**;
+  - **MULTICARRIER** → también es Alestra: solo por línea;
+  - **TELCEL** y **ATT** → solo por **ICCID**.
+- **Efecto en la app** (implementado el 2026-11-09, `OperadorPlantilla`):
+  - Variantes reales aceptadas: `Alestra`, `Multicarrier`, `Telcel`, `AT&T`,
+    `AT&T_2`, `ATT001`, `ATT002`, `ATT02` (se comparan solo las letras).
+  - Si la fila dice un operador y la SIM solo está en el otro, queda en **0**
+    y sale un aviso `CARRIER_NO_COINCIDE` en el reporte final.
+  - Columna vacía u otro valor (`STARLINK`, `OUI`, `Proveedor de internet`)
+    → se busca como antes (cascada). Las tablas dual SIM no cambian.
+  - En octubre, con la plantilla oficial, ninguna fila tiene el operador en
+    desacuerdo con donde está la SIM; el resultado no cambia.
+
 ---
 
 ## Regla general (confirmada el 2026-11-05)
@@ -141,14 +249,14 @@
 | Número de línea equivocado en la plantilla | Se corrige la plantilla; la app no adivina. | D-007, D-009 |
 | Cualquier SIM repetida | Aparece en el **reporte final de la corrida**: hoja, filas, quién se quedó el consumo y quién quedó en 0. | D-006 |
 
-**Efecto en la app (por implementar):**
-- `ReglaAmbigua` debe distinguir la **hoja** de cada aparición: hoy
-  `ContextoFila` solo recibe un identificador de tabla, y la regla default
-  pone en 0 toda repetición, también las de hojas distintas (contradice
-  D-001).
-- La consistencia de totales debe descontar los MB repetidos a propósito
-  entre hojas.
-- Reporte final de duplicados (hoja o sección en la salida y en la UI).
+**Efecto en la app (implementado el 2026-11-09, ver D-013):**
+- `ContextoFila` recibe la **hoja** de cada aparición y si la clave ya había
+  aparecido en esa hoja; la regla default es `PrimeraEnLaHojaGanaReglaAmbigua`.
+- La consistencia de totales descuenta los MB repetidos a propósito entre
+  hojas (`TotalesFuente.totalRepetidoEntreHojas`).
+- Reporte final de la corrida: `ReporteFinalCorrida` (repetidas, consumo sin
+  cliente, totales). Falta mostrarlo en la UI y en el `.xlsx` de salida
+  (Fase 2, punto 4).
 
 ## Correcciones en la plantilla
 
@@ -168,17 +276,27 @@ Verificación: de 17,514 celdas en las 21 hojas, cambiaron exactamente 6 (las
 desde cero, llega a los mismos valores. El libro queda marcado para que
 Excel recalcule al abrirlo.
 
-- [ ] El usuario adopta la copia corregida como su plantilla.
+- [x] El usuario adopta la copia corregida como su plantilla (2026-11-09, D-012).
+- [x] TIENDAS EXTRA fila 283: ICCID → `NA` (2026-11-09, D-014), en la
+      plantilla oficial. De 17,514 celdas cambió solo esa; el consumo de la
+      fila ya era 0 y la 286 conserva 10,128.70 MB. Respaldo previo:
+      `archivos/CONSUMOS_OCTUBRE_2026_corregido.respaldo-antes-D014.xlsx`.
 - Las filas 49 de DENTALIA y 270 / 273 de TIENDAS EXTRA no necesitan
   corrección: la regla D-006 las deja en 0 y las reporta. Opcionalmente se
   pueden borrar de la plantilla.
 
 ## Pendiente
 
-- [ ] El usuario revisa los casos restantes de SIMs repetidas: TIENDAS EXTRA
-      (filas 283/286, 222/361), DENTALIA (16/43, 25/26), DICONSA
-      (99-107/199-202, 181/190) y ALSEA (21/22, 23/123).
-- [ ] Implementar la regla general y el reporte final de duplicados.
-- [ ] Resto de decisiones abiertas de la spec 09: filas con valor manual
-      (STARLINK y SIMs de Telcel fuera del export), origen de los consumos
-      de Telcel de METROBÚS/DICONSA, y las 52 claves sin cliente.
+- [x] El usuario revisa los casos restantes de SIMs repetidas: se aplica la
+      regla general (D-013).
+- [x] TIENDAS EXTRA filas 283 / 286: la 283 va en 0 (D-014).
+- [x] Implementar la regla general y el reporte final de duplicados
+      (2026-11-09, D-013).
+- [x] Origen de los consumos de Telcel de METROBÚS y DICONSA: RMS de
+      Teltonika (D-010).
+- [x] Claves sin cliente: se listan en el reporte final (D-011).
+- [x] Valores escritos a mano (RMS, STARLINK, `DESACTIVADO`, `NA`): el
+      escritor pone 0; son del mes pasado (D-015).
+- [x] TIENDAS EXTRA fila 283: el usuario confirmó que sí es Telcel; el
+      Carrier se queda en `TELCEL` y la fila queda en 0 por el `NA` del
+      ICCID (D-014).

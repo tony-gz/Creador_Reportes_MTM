@@ -19,7 +19,7 @@ App para automatizar los reportes mensuales de consumo de datos SIM de MTM.
 
 ```bash
 cd sim-reports
-./mvnw test   # 165 tests, 0 fallos
+./mvnw test   # 211 tests, 0 fallos
 ```
 
 `./mvnw` (Maven Wrapper) descarga Maven 3.9.16 la primera vez, verificando

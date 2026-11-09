@@ -27,8 +27,41 @@ package com.simreports.core.matching;
  * Excel (equipo dado de baja — spec 00), se representa como
  * {@code null}. Una cadena vacía o solo con espacios también se acepta:
  * el motor la trata igual que {@code null} tras normalizarla.</p>
+ *
+ * @param sim       valor de la columna {@code SIM} / {@code Carrier} tal
+ *                  cual viene en la plantilla (operador de la SIM), o
+ *                  {@code null} si la tabla no tiene esa columna. Decide
+ *                  dónde se busca la SIM en las tablas simples (D-016, ver
+ *                  {@link OperadorPlantilla}). No aplica a {@code DUAL_SIM}.
+ * @param filaExcel número de fila en la hoja de Excel (1 = primera fila),
+ *                  solo para el reporte final de la corrida (p. ej. "SIM
+ *                  repetida en filas 13 y 49"). No afecta el matching.
+ *                  {@code null} si quien arma la fila no lo conoce; el lector
+ *                  de la plantilla siempre debe llenarlo (ver
+ *                  {@link #enFila(int)}).
  */
-public record FilaPlantilla(String linea, String iccid, String linea1, String linea2) {
+public record FilaPlantilla(String linea, String iccid, String linea1, String linea2, String sim, Integer filaExcel) {
+
+    public FilaPlantilla {
+        if (filaExcel != null && filaExcel < 1) {
+            throw new IllegalArgumentException("filaExcel debe ser >= 1, fue " + filaExcel);
+        }
+    }
+
+    /** Fila sin operador ni número de fila conocidos. */
+    public FilaPlantilla(String linea, String iccid, String linea1, String linea2) {
+        this(linea, iccid, linea1, linea2, null, null);
+    }
+
+    /** Copia de esta fila con su número de fila de Excel (1 = primera fila). */
+    public FilaPlantilla enFila(int filaExcel) {
+        return new FilaPlantilla(linea, iccid, linea1, linea2, sim, filaExcel);
+    }
+
+    /** Copia de esta fila con el valor de su columna {@code SIM} / {@code Carrier}. */
+    public FilaPlantilla conSim(String sim) {
+        return new FilaPlantilla(linea, iccid, linea1, linea2, sim, filaExcel);
+    }
 
     public static FilaPlantilla simplePorLinea(String linea) {
         return new FilaPlantilla(linea, null, null, null);

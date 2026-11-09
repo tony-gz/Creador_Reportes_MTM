@@ -11,8 +11,17 @@ vacía).
 ## Reglas por tipo de tabla (según el mapeo de la spec 01)
 Para cada tabla ya mapeada de la plantilla:
 
+> **Desde el 2026-11-09 (D-016, spec 10) la columna `SIM` / `Carrier`
+> decide dónde se busca** en las tablas simples: `ALESTRA` o
+> `MULTICARRIER` → solo `LINEA` contra Alestra; `TELCEL` o `ATT` (también
+> `AT&T`, `AT&T_2`, `ATT001`...) → solo `ICCID` contra Telcel + ATT. Si la
+> fila está marcada con un operador y la SIM solo está en el otro, queda en
+> 0 con aviso `CARRIER_NO_COINCIDE`. Vacía u otro valor (`STARLINK`, `OUI`)
+> → la cascada de siempre. No aplica a las tablas dual SIM.
+
 1. **Tabla simple con `LINEA` e `ICCID` a la vez** (caso real: columnas
-   `LINEA, ICCID, CONSUMO`):
+   `LINEA, ICCID, CONSUMO`). *Lo que sigue aplica solo cuando la columna
+   `SIM` está vacía o no se reconoce (ver D-016 arriba):*
    - Cada SIM pertenece a un solo operador, así que se resuelve en
      **cascada por fila**: primero buscar `LINEA` contra **Alestra**; si
      no hay match, buscar `ICCID` contra **Telcel + ATT combinados**.
@@ -92,13 +101,20 @@ para cada fuente F en {Alestra, Telcel+ATT}:
   archivo, se suman las columnas de consumo y se compara contra lo que el
   motor asignó (ver checklist 08, punto 4).
 
-## Reglas ambiguas pendientes de confirmar (interfaz `ReglaAmbigua`)
+## Reglas ambiguas (interfaz `ReglaAmbigua`)
 > **Datos reales (octubre 2026, spec 09):** sí hay SIMs repetidas en la
-> plantilla — 9 casos en un mes. El reporte manual repite el consumo en cada
-> aparición; la regla default lo asigna solo a la primera. Decisiones del
-> usuario en `10-registro-decisiones.md` (D-001: entre hojas distintas se
-> cuenta en todas; D-002: dentro de la misma hoja, una sola vez, en la fila
-> válida). La regla default actual todavía no implementa D-001.
+> plantilla. Regla confirmada por el usuario (`10-registro-decisiones.md`)
+> e implementada el 2026-11-09 en `PrimeraEnLaHojaGanaReglaAmbigua`:
+> - misma SIM en **hojas distintas** → se cuenta en cada hoja (D-001); la
+>   consistencia de totales descuenta esos MB (`totalRepetidoEntreHojas`);
+> - misma SIM **dentro de una hoja** → la primera aparición conserva el
+>   consumo y las demás van en 0 (D-006);
+> - la fila válida no es la primera, o la línea está mal → se corrige la
+>   plantilla (D-002, D-007, D-009);
+> - toda repetición sale en el reporte final (`ResultadoMatching.simsRepetidas`,
+>   `ReporteFinalCorrida`).
+>
+> Lo que sigue es el diseño original, antes de tener datos reales.
 
 Dos reglas del motor dependen de datos reales que aún no se han
 confirmado (spec 00, pendientes de Fase 0):

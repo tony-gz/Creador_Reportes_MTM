@@ -40,6 +40,9 @@ Excel de 18 hojas (una por cliente).
   reemplazo de la plantilla activa (ver spec 04), no un modelo de permisos.
 - Política de borrado/retención de reportes históricos: por decisión
   consciente, **no se borra nada automáticamente** por ahora (ver spec 04).
+- Consultar el consumo de los routers en la **API de Teltonika RMS**. Hoy
+  el usuario copia a mano el aproximado del RMS para las SIMs de Telcel de
+  METROBÚS y DICONSA (D-010). Es una tarea futura (spec 08).
 
 ## Stack propuesto
 | Capa | Elección | Nota |

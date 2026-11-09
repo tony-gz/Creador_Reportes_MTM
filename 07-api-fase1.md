@@ -173,8 +173,13 @@ sola fuente lógica).
 - Ojo: un match con `0.0` MB reales sigue teniendo fuente no nula → no es
   "no encontrado".
 
-**`FilaPlantilla(String linea, String iccid, String linea1, String linea2)`**
-— record. Campos que no aplican o celdas vacías = `null` (nunca `""`).
+**`FilaPlantilla(String linea, String iccid, String linea1, String linea2, String sim, Integer filaExcel)`**
+— record (hay constructor de 4 args con `sim` y `filaExcel` en `null`).
+`sim` = valor crudo de la columna `SIM` / `Carrier` (`conSim(String)`); en
+las tablas simples decide dónde se busca (D-016, `OperadorPlantilla`). Campos que no
+aplican o celdas vacías = `null` (nunca `""`). `filaExcel` = fila de Excel
+(1 = primera), solo para el reporte final; `enFila(int)` devuelve una copia
+con la fila. El lector de la plantilla siempre debe llenarla.
 Factories estáticos: `simplePorLinea(linea)`, `simplePorIccid(iccid)`,
 `cascada(linea, iccid)`, `dualSim(linea1, linea2)` (estos dos NO usan
 `linea`/`iccid`). Valores como texto (nunca un `double` en notación
@@ -186,26 +191,44 @@ clave vacía tras normalizar cuenta como `null`.
 - `dualSim(Asignacion, Asignacion)` → llena `consumo1`, `consumo2` y
   `consumoTotal` (recalculado, nunca leído); `consumo` es `null`.
 
-**`TablaConFilas(String identificador, TipoTablaPlantilla tipo, List<FilaPlantilla> filas)`**
-— record, entrada por tabla (identificador solo para trazabilidad, no
-decide matching). Lista inmutable.
+**`TablaConFilas(String hoja, String identificador, TipoTablaPlantilla tipo, List<FilaPlantilla> filas)`**
+— record, entrada por tabla. `hoja` **sí decide** el matching de SIMs
+repetidas (D-001/D-006): dos tablas de la misma hoja llevan el mismo
+`hoja`. `identificador` solo para trazabilidad. Constructor de 3 args
+(`hoja = identificador`) solo para pruebas. Lista inmutable.
 
 **`ResultadoTabla(String identificador, List<ResultadoFilaPlantilla> filas)`**
 — record, en el mismo orden que las filas de entrada.
 
 **`NoEncontrado(FuenteConsumo fuente, String clave, double consumoMb)`** — record.
 
-**`AdvertenciaConsistencia(FuenteConsumo fuente, double totalOrigen, double totalAsignado, double totalNoEncontrado)`**
-— record; `double diferencia()` = `totalOrigen - (totalAsignado + totalNoEncontrado)`.
+**`AdvertenciaConsistencia(FuenteConsumo fuente, double totalOrigen, double totalAsignado, double totalNoEncontrado, double totalRepetidoEntreHojas)`**
+— record; `double diferencia()` = `totalOrigen - (totalAsignado - totalRepetidoEntreHojas + totalNoEncontrado)`.
 
-**`ResultadoMatching`** — `record (List<NoEncontrado> noEncontrados, List<AdvertenciaConsistencia> advertenciasConsistencia, List<AvisoParseo> avisosParseo, List<TotalesFuente> totales)`.
+**`ResultadoMatching`** — `record (List<NoEncontrado> noEncontrados, List<AdvertenciaConsistencia> advertenciasConsistencia, List<AvisoParseo> avisosParseo, List<TotalesFuente> totales, List<SimRepetida> simsRepetidas)`.
 Listas inmutables. `noEncontrados` ordenados por fuente y clave.
 `avisosParseo` = heredados de los parsers + generados por el motor
 (ReglaAmbigua). `totales` = uno por fuente (origen, asignado, no
-encontrado). `double totalAsignado()` = suma de lo asignado en todas las
-fuentes. No incluye los valores a escribir (eso va por `ResultadoTabla`).
+encontrado, repetido entre hojas). `simsRepetidas` = claves con consumo
+que aparecen 2+ veces en la plantilla, ordenadas por fuente y clave.
+`double totalAsignado()` = suma de lo asignado en todas las fuentes. No
+incluye los valores a escribir (eso va por `ResultadoTabla`).
 
-**`TotalesFuente(FuenteConsumo fuente, double totalOrigen, double totalAsignado, double totalNoEncontrado)`** — record.
+**`TotalesFuente(FuenteConsumo fuente, double totalOrigen, double totalAsignado, double totalNoEncontrado, double totalRepetidoEntreHojas)`**
+— record (constructor de 4 args con repetido = 0). `totalAsignado` incluye
+lo repetido entre hojas (es lo que debe tener el `.xlsx`).
+
+**`SimRepetida(FuenteConsumo fuente, String clave, double consumoMb, List<AparicionSim> apariciones)`**
+— record; `hojas()`, `repetidaEnLaMismaHoja()`, `repetidaEntreHojas()`.
+
+**`AparicionSim(String hoja, String tabla, Integer filaExcel, String campo, double consumoAsignado)`**
+— record; `campo` = `LINEA`, `ICCID`, `LINEA_1` o `LINEA_2`.
+
+**`ReporteFinalCorrida`** — clase final: `static String generar(ResultadoMatching)`.
+Texto con 6 secciones: totales, repetidas en la misma hoja (quién conservó
+el consumo y quién quedó en 0), repetidas entre hojas, consumo sin cliente
+(lista de líneas/ICCID de mayor a menor MB), consistencia y otros avisos.
+La Fase 2 lo muestra al terminar la corrida (D-006, D-011).
 
 **`VerificadorReporteEscrito`** — clase final, verificación independiente
 del `.xlsx` ya escrito:
@@ -217,7 +240,8 @@ y `CONSUMO(MB)_2` (no `CONSUMO_TOTAL`) releídas del archivo escrito.
 Descuadre > 0.01 MB → bug del escritor; el reporte no debe darse por
 válido. **Importante:** la consistencia interna de `finalizar()` cuadra por
 construcción con la regla default; esta es la comprobación que sí detecta
-errores de escritura.
+errores de escritura. Lo repetido entre hojas cuenta como esperado (está en
+`totalAsignado`).
 
 **`DescuadreReporteEscrito(double totalEsperado, double totalLeido)`** — record; `diferencia()`.
 
@@ -245,30 +269,43 @@ ResultadoMatching finalizar()
    para obtener "no encontrados" + consistencia + avisos. Llamar
    `finalizar()` antes de recorrer todas las tablas da "no encontrados"
    incompletos.
-3. Regla de cascada (spec 03, regla 1): `LINEA` contra Alestra primero; si
+3. Columna `SIM` / `Carrier` (D-016), en tablas simples: `ALESTRA` → solo
+   línea; `TELCEL_ATT` → solo ICCID; si la SIM solo está en el otro
+   operador, 0 MB + aviso `TipoAviso.CARRIER_NO_COINCIDE`. Con
+   `NO_RECONOCIDO` se usa la regla del tipo de tabla (abajo).
+   Regla de cascada (spec 03, regla 1): `LINEA` contra Alestra primero; si
    la línea **no existe** en Alestra, `ICCID` contra Telcel+ATT. Si la línea
    existe pero está repetida en la plantilla, la fila la resuelve
    `ReglaAmbigua` y **no** cae a ICCID (aunque la regla deje 0 MB).
 4. Si una clave matchea más de una vez en la corrida, la 2ª aparición en
-   adelante se delega en `ReglaAmbigua` (interfaz inyectable).
+   adelante se delega en `ReglaAmbigua` (interfaz inyectable). Con la
+   default: en otra hoja se cuenta completa (D-001); en la misma hoja, 0 MB
+   (D-006).
 
 **`ReglaAmbigua`** (interfaz):
 ```java
 ResolucionAmbigua resolver(ContextoFila contexto);
 ```
 
-**`ContextoFila`** — record `(String clave, FuenteConsumo fuente, double consumoMb, String tablaIdentificador, int numeroDeAparicion)`.
+**`ContextoFila`** — record `(String clave, FuenteConsumo fuente, double consumoMb, String hoja, String tablaIdentificador, Integer filaExcel, int numeroDeAparicion, boolean yaAparecioEnEstaHoja)`.
 `numeroDeAparicion >= 2` forzado (`IllegalArgumentException` si es menor).
+`ubicacion()` = `'hoja' fila N` para mensajes.
+
+**`OperadorPlantilla`** — enum `ALESTRA`, `TELCEL_ATT`, `NO_RECONOCIDO`;
+`static desde(String valorColumnaSim)` compara solo letras sin distinguir
+mayúsculas (`ALESTRA`/`MULTICARRIER` → `ALESTRA`; `TELCEL`/`ATT`, `AT&T_2`,
+`ATT001` → `TELCEL_ATT`; vacío u otro → `NO_RECONOCIDO`).
 
 **`ResolucionAmbigua`** — record `(Asignacion asignacion, String advertencia)`.
 `advertencia` puede ser `null`; `advertenciaOpcional()`.
 
-**`PrimeraCoincidenciaGanaReglaAmbigua`** — default de `ReglaAmbigua`: a
-partir de la 2ª aparición asigna 0 MB y genera aviso `CLAVE_DUPLICADA` con
-clave, tabla y consumo que habría correspondido. Es la implementación que
-usa el constructor de 3 args del motor; se puede reemplazar por otra en el
-constructor de 4 args (spec 03: el ajuste por datos reales de Fase 0 se
-limita a esta clase).
+**`PrimeraEnLaHojaGanaReglaAmbigua`** — default de `ReglaAmbigua` (D-001 y
+D-006, spec 10): si la clave ya apareció **en la misma hoja**, asigna 0 MB;
+si solo había aparecido en **otras hojas**, asigna el consumo completo. En
+los dos casos genera aviso `CLAVE_DUPLICADA`. Es la que usa el constructor
+de 3 args del motor; se puede reemplazar en el de 4 args. (Reemplaza a
+`PrimeraCoincidenciaGanaReglaAmbigua`, que dejaba en 0 también las
+repeticiones entre hojas.)
 
 ## Notas de comportamiento que la Fase 2 debe respetar
 

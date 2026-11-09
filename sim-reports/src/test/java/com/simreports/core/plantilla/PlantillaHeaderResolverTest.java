@@ -34,9 +34,16 @@ class PlantillaHeaderResolverTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"SIM", "SERIE", "UNIDAD", "MARCA", "MODELO", "CONSUMO_TOTAL", ""})
+    @ValueSource(strings = {"SERIE", "UNIDAD", "MARCA", "MODELO", "CONSUMO_TOTAL", ""})
     void noReconoceColumnasQueNoSonCampoLogico(String headerReal) {
         assertTrue(resolver.resolver(headerReal).isEmpty());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"SIM", "sim", "Carrier", "CARRIER", " Carrier "})
+    void reconoceLaColumnaDelOperadorComoSimYCarrier(String headerReal) {
+        // D-016: TIENDAS EXTRA la llama "Carrier"; el resto de hojas, "SIM".
+        assertEquals(Optional.of("SIM"), resolver.resolver(headerReal));
     }
 
     @Test

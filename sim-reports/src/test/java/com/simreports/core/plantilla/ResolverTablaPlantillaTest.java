@@ -22,7 +22,17 @@ class ResolverTablaPlantillaTest {
         assertEquals("LINEA", resultado.columnaPorCampoLogico().get("LINEA"));
         assertEquals("ICCID", resultado.columnaPorCampoLogico().get("ICCID"));
         assertEquals("CONSUMO(MB)", resultado.columnaPorCampoLogico().get("CONSUMO(MB)"));
-        assertEquals(List.of("SIM", "SERIE"), resultado.encabezadosNoReconocidos());
+        assertEquals("SIM", resultado.columnaPorCampoLogico().get("SIM"));
+        assertEquals(List.of("SERIE"), resultado.encabezadosNoReconocidos());
+    }
+
+    @Test
+    void laColumnaCarrierQuedaComoCampoSim() {
+        TablaPlantillaResuelta resultado = resolver.resolver(
+                List.of("Carrier", "LINEA", "ICCID", "CONSUMO(MB)"));
+
+        assertEquals(TipoTablaPlantilla.SIMPLE_CASCADA, resultado.tipo());
+        assertEquals("Carrier", resultado.columnaPorCampoLogico().get("SIM"));
     }
 
     @Test

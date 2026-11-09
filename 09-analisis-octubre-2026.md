@@ -65,13 +65,25 @@
 ## Decisiones pendientes del usuario
 > Las decisiones ya tomadas se registran en `10-registro-decisiones.md`.
 
-1. **SIMs repetidas** (9 en octubre): ¿qué fila debe llevar el consumo? Hoy
-   el reporte manual lo cuenta en todas; la app, solo en la primera.
-   *En curso:* D-001 (entre hojas distintas → se cuenta en las dos) y D-002
-   (dentro de la misma hoja → solo la fila válida) ya registradas.
-2. **Filas con valor manual** (STARLINK, Telcel fuera del archivo): ¿la app
-   las deja intactas, o se agrega una fuente "manual"/Starlink?
-3. **Export crudo de Telcel**: compartirlo para probar el parser real y ver
-   si incluye las SIMs de METROBÚS y DICONSA.
-4. Las 42 líneas de Alestra sin cliente: ¿son altas pendientes en la
-   plantilla?
+1. ~~**SIMs repetidas**~~ — resuelto: entre hojas distintas se cuenta en
+   todas, dentro de una hoja la primera (D-001, D-006, D-013; implementado
+   el 2026-11-09). TIENDAS EXTRA 283/286: la 283 va en 0 (D-014).
+2. **Filas con valor manual**: las de Telcel en METROBÚS y DICONSA salen del
+   RMS de Teltonika (D-010); a futuro, API de Teltonika. El escritor pone 0
+   en toda fila sin coincidencia, también en STARLINK y en los textos: el
+   valor que traen es del mes pasado (D-015).
+3. ~~**Export crudo de Telcel**~~ — ya no hace falta para METROBÚS/DICONSA
+   (D-010). Sigue siendo útil para probar `TelcelParser` con el archivo
+   real.
+4. ~~Las 42 líneas de Alestra sin cliente~~ — se listan en el reporte final
+   de cada corrida para que el usuario las revise (D-011). Con la plantilla
+   oficial son 40.
+
+**Corrida del 2026-11-09** (plantilla oficial = la corregida, D-012 y
+D-014, y la regla nueva): 1,258 celdas comparadas, 1,227 iguales al reporte
+manual. Las 31 diferencias son todas esperadas: 25 valores del RMS de
+Teltonika (METROBÚS 21, DICONSA 4) y 3 textos (`DESACTIVADO`, `NA`), que la
+app pone en 0 (D-015), y 3 SIMs repetidas dentro de una hoja que quedan en 0
+(DENTALIA 49, TIENDAS EXTRA 270 y 273; D-006). (Esta vez se
+leyeron también las tablas con encabezado `CONSUMO (MB)` con espacio: KUEHENE
+NAGEL, PETCO y ANIXTER.)

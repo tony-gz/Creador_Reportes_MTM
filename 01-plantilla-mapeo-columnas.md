@@ -49,9 +49,12 @@ Notas sobre la convención:
 - Excel no permite encabezados duplicados dentro de una misma `Table`, por
   eso las tablas dual SIM necesitan `LINEA_1`/`LINEA_2` y
   `CONSUMO(MB)_1`/`CONSUMO(MB)_2` en vez de repetir `LINEA`/`CONSUMO(MB)`.
-- El resto de columnas de la tabla (SIM, SERIE, UNIDAD, MARCA, MODELO,
-  etc.) **no necesitan estandarizarse** — el resolver las ignora, solo le
+- El resto de columnas de la tabla (SERIE, UNIDAD, MARCA, MODELO, etc.)
+  **no necesitan estandarizarse** — el resolver las ignora, solo le
   importan los campos lógicos de arriba.
+- La columna del operador sí es campo lógico desde el 2026-11-09 (D-016):
+  `SIM`, o `Carrier` (así se llama en TIENDAS EXTRA). Es opcional; sin ella
+  la tabla se resuelve como antes.
 - `CONSUMO_TOTAL` en las tablas dual SIM se recalcula siempre
   (`CONSUMO(MB)_1 + CONSUMO(MB)_2`), no se lee como dato de entrada.
 - Solo las 3 hojas con router necesitan editarse a la nomenclatura dual;
@@ -158,9 +161,8 @@ Reglas de clasificación de la tabla, una vez resueltos los campos:
   intenta primero `LINEA` contra Alestra y, solo si no hay match, `ICCID`
   contra Telcel + ATT. Se asume que la misma línea/ICCID nunca aparece en
   dos operadores a la vez, por lo que no hace falta desambiguar con la
-  columna `SIM` (que indica el operador) — queda como posible mejora futura
-  (validación cruzada opcional para el reporte de inconsistencias), no
-  bloquea la implementación de Fase 1.
+  columna `SIM` (que indica el operador). *Cambiado el 2026-11-09 (D-016):
+  la columna `SIM` / `Carrier` sí decide dónde buscar; ver spec 03.*
 - Tiene solo `LINEA` (sin `ICCID` ni `LINEA_2`) → tabla **simple por
   línea**: matchear contra Alestra.
 - Tiene solo `ICCID` (sin columnas de línea) → tabla **simple por ICCID**:

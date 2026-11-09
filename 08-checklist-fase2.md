@@ -15,7 +15,14 @@
       Requisitos confirmados con el reporte real de octubre (spec 09):
       ignorar hojas `BD_*`; fallar si una hoja tiene filas de encabezado
       **fuera** de sus tablas nativas (caso ALSEA bloque 2), no solo si no
-      tiene ninguna tabla.
+      tiene ninguna tabla. Cada `TablaConFilas` lleva el **nombre de la
+      hoja** (el mismo para todas las tablas de una hoja) y cada
+      `FilaPlantilla` su **fila de Excel** (`enFila`) y el valor de la
+      columna **`SIM` / `Carrier`** (`conSim`, campo lógico `SIM`): la regla
+      de SIMs repetidas, el reporte final y la búsqueda por operador
+      (D-016) dependen de eso. Encabezados reales con
+      espacio, como `CONSUMO (MB)` (KUEHENE NAGEL, PETCO, ANIXTER), deben
+      reconocerse.
 - [ ] 3. Endpoints de plantilla (`POST /api/plantilla`, `GET`/`PUT
       /api/plantilla/mapeo`, `GET /api/plantilla/versiones`) + lock
       `SELECT ... FOR UPDATE` sobre la fila activa. La regla "una sola
@@ -29,6 +36,16 @@
       consumo a `VerificadorReporteEscrito.verificar(...)`; un descuadre
       significa que el escritor tiene un bug y el reporte no se entrega
       como válido.
+      - **Reporte final** (D-006, D-011): mostrar `ReporteFinalCorrida` al
+        terminar (UI) y guardarlo con el reporte (hoja de resumen en el
+        `.xlsx` y/o en `ReporteGenerado`).
+      - **Filas sin coincidencia → 0** (D-015), aunque la plantilla traiga
+        un número fijo (RMS de Teltonika, STARLINK) o un texto
+        (`DESACTIVADO`, `NA`): ese valor es del mes pasado. Toda celda de
+        consumo se escribe con lo que da el motor; el verificador no
+        necesita casos especiales. *Sugerencia (no decidida):* listar en el
+        reporte final las filas cuyo valor fijo se reemplazó por 0, para que
+        el usuario sepa cuáles llenar desde el RMS.
 - [ ] 5. Endpoints de reportes (`POST /api/reportes`, `GET
       /api/reportes/{id}/descargar`, `GET /api/reportes`).
 - [ ] 6. `@ControllerAdvice` global: traduce `ArchivoFormatoInvalidoException`,
@@ -37,6 +54,12 @@
       archivos en filesystem. (Flyway ya está configurado; falta la
       carpeta base de archivos y decidir perfiles vs. variables de
       entorno.)
+
+## Tareas futuras (fuera de la Fase 2)
+- **API de Teltonika RMS** (D-010): consultar automáticamente el consumo de
+  los routers cuyas SIMs de Telcel no vienen en ningún archivo de operador
+  (hoy METROBÚS y DICONSA, copiado a mano del RMS). Sería una cuarta
+  fuente de consumo.
 
 ## Notas de esta entrega (punto 1)
 - Spring Boot **4.1.1** como parent (la `4.1.2` original no existe en
@@ -106,3 +129,35 @@ Resultado: `mvn test` 134/134 OK (123 + 11 nuevos).
 - Apache POI 5.2.5 → **5.5.1** (CVE-2025-31672).
 
 Resultado: `mvn test` **160/160 OK**.
+
+## Regla de SIMs repetidas y reporte final (2026-11-09, antes del punto 2)
+Implementa D-001, D-006 y D-011 (spec 10) en el core:
+- `TablaConFilas` lleva la **hoja**; `FilaPlantilla` la **fila de Excel**.
+- Nueva regla default `PrimeraEnLaHojaGanaReglaAmbigua` (reemplaza a
+  `PrimeraCoincidenciaGanaReglaAmbigua`): repetida en otra hoja → consumo
+  completo; repetida en la misma hoja → 0. Dos tablas de una hoja cuentan
+  como la misma hoja.
+- `TotalesFuente` / `AdvertenciaConsistencia` con `totalRepetidoEntreHojas`:
+  la consistencia descuenta lo contado de nuevo en otra hoja, pero no lo
+  repetido dentro de una hoja (eso sigue siendo un doble conteo).
+- `ResultadoMatching.simsRepetidas()` (`SimRepetida` + `AparicionSim`) y
+  `ReporteFinalCorrida.generar(...)`: totales, repetidas en la misma hoja,
+  repetidas entre hojas, consumo sin cliente (lista), consistencia y avisos.
+- Corrida real de octubre con la plantilla oficial: 5 repetidas en la misma
+  hoja, 1 entre hojas, 40 líneas de Alestra sin cliente, consistencia
+  cuadrada (detalle en spec 09).
+
+Resultado: `./mvnw test` **179/179 OK** (165 + 14).
+
+## Búsqueda por operador según la columna SIM / Carrier (2026-11-09)
+Decisión D-016 (spec 10):
+- Campo lógico `SIM` en la plantilla (`SIM` o `Carrier`); `FilaPlantilla.sim`.
+- `OperadorPlantilla`: Alestra y Multicarrier → solo línea; Telcel y ATT →
+  solo ICCID; vacío u otro valor → cascada de siempre. No aplica a dual SIM.
+- `TipoAviso.CARRIER_NO_COINCIDE` cuando la fila dice un operador y la SIM
+  solo está en el otro (la fila queda en 0); sale en "Otros avisos" del
+  reporte final.
+- Octubre con la plantilla oficial: mismo resultado que antes (1,227 de
+  1,258 celdas iguales al manual), sin avisos de operador.
+
+Resultado: `./mvnw test` **211/211 OK** (179 + 32).
