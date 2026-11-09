@@ -101,4 +101,21 @@ class TelcelParserTest {
         assertEquals(1, resultado.consumos().size());
         assertEquals(15.0, resultado.consumos().get("8952000000000001"));
     }
+
+    @Test
+    void aceptaCsvEnWindows1252YConsumoConComaDecimal() {
+        // Export guardado con la codificación por defecto de Excel en
+        // Windows (no UTF-8): la "Ó" de DURACIÓN no es UTF-8 válido.
+        String csv = String.join("\n",
+                "DURACIÓN (UTC),ICCID,USO (MB)",
+                "2026-08-01,'8952020221396597611',\"0,5\"",
+                "2026-08-02,'8952020221396597611',\"1,25\"",
+                "");
+
+        InputStream archivo = new ByteArrayInputStream(csv.getBytes(java.nio.charset.Charset.forName("windows-1252")));
+        ResultadoParseo resultado = parser.parsear(archivo);
+
+        assertEquals(1.75, resultado.consumos().get("8952020221396597611"));
+        assertTrue(resultado.avisos().isEmpty());
+    }
 }

@@ -85,7 +85,9 @@ discusión en otra sesión)
   recibe la regla inyectada (para tests y para cuando Fase 0 confirme el
   comportamiento real). Con la regla default, duplicar una línea en dos
   hojas ya NO dispara advertencia de consistencia (el total escrito
-  cuadra); dispara aviso de duplicado.
+  cuadra); dispara aviso de duplicado. *(2026-11-09: reemplazada por
+  `PrimeraEnLaHojaGanaReglaAmbigua` según las decisiones D-001/D-006 de la
+  spec 10; ver spec 08.)*
 - `ContextoFila` exige `numeroDeAparicion >= 2` y rechaza valores
   menores con `IllegalArgumentException` (la primera aparición nunca
   pasa por `ReglaAmbigua`).

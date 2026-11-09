@@ -2,6 +2,7 @@ package com.simreports.reportes;
 
 import com.simreports.plantilla.PlantillaConfig;
 import com.simreports.plantilla.PlantillaConfigRepository;
+import com.simreports.PostgresEmbebido;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -13,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @Transactional
-class ReporteGeneradoRepositoryTest {
+class ReporteGeneradoRepositoryTest extends PostgresEmbebido {
 
     @Autowired
     private ReporteGeneradoRepository reporteRepository;

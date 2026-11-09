@@ -1,17 +1,18 @@
 package com.simreports.core.matching;
 
 import com.simreports.core.AvisoParseo;
+import com.simreports.core.NormalizadorClave;
 import com.simreports.core.ResultadoParseo;
 import com.simreports.core.TipoAviso;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.DoubleConsumer;
 
 /**
  * Motor de coincidencia — spec 03. Puro: no conoce Excel ni Spring.
@@ -36,9 +37,10 @@ import java.util.function.DoubleConsumer;
  * <p>Si una clave (línea o ICCID) se consulta con éxito más de una vez
  * durante la corrida (misma hoja o hojas distintas), la segunda
  * aparición en adelante se delega en una {@link ReglaAmbigua} — por
- * defecto {@link PrimeraCoincidenciaGanaReglaAmbigua} — en vez de
- * repetir el valor automáticamente (spec 03, "Reglas ambiguas
- * pendientes de confirmar").</p>
+ * defecto {@link PrimeraEnLaHojaGanaReglaAmbigua}: entre hojas distintas
+ * se cuenta en cada una (D-001) y dentro de una hoja solo la primera
+ * (D-006). Todas las repeticiones salen en
+ * {@link ResultadoMatching#simsRepetidas()}.</p>
  *
  * <p>Una instancia de {@code MotorCoincidencia} se usa para una sola
  * corrida completa (una subida de las 3 BDs + toda la plantilla); no se
@@ -62,10 +64,11 @@ public class MotorCoincidencia {
     private final Set<String> lineasConsultadasAlestra = new HashSet<>();
     private final Set<String> iccidsConsultadosTelcelAtt = new HashSet<>();
 
-    // Cuántas veces se ha consultado con match cada clave en esta
-    // corrida — a partir de la 2a aparición se delega en ReglaAmbigua.
-    private final Map<String, Integer> aparicionesAlestra = new HashMap<>();
-    private final Map<String, Integer> aparicionesTelcelAtt = new HashMap<>();
+    // Cada aparición con match de cada clave en esta corrida (hoja, fila y
+    // MB asignados) — a partir de la 2a se delega en ReglaAmbigua, y las
+    // claves con 2 o más forman el reporte de SIMs repetidas.
+    private final Map<String, List<AparicionSim>> aparicionesAlestra = new HashMap<>();
+    private final Map<String, List<AparicionSim>> aparicionesTelcelAtt = new HashMap<>();
 
     // Avisos generados por el motor mismo durante el matching (hoy, los
     // que produce ReglaAmbigua ante claves repetidas). Se combinan con
@@ -74,13 +77,21 @@ public class MotorCoincidencia {
 
     // Suma literal de cada MB escrito en la plantilla que vino de cada
     // fuente — spec 03, pseudocódigo de consistencia de totales. No se
-    // dedupea por clave: si ReglaAmbigua decide no repetir un valor (como
-    // hace la implementación default), simplemente no se vuelve a sumar.
+    // dedupea por clave: si ReglaAmbigua decide no repetir un valor,
+    // simplemente no se vuelve a sumar.
     private double totalEscritoAlestra = 0.0;
     private double totalEscritoTelcelAtt = 0.0;
 
+    // Parte de lo escrito que corresponde a una clave en una hoja donde
+    // todavía no había aparecido, pero que ya había aparecido en otra (D-001):
+    // MB repetidos a propósito, que la consistencia descuenta. Lo que una
+    // regla vuelva a escribir dentro de la MISMA hoja no se descuenta: eso
+    // sí es un doble conteo y debe disparar la advertencia.
+    private double totalRepetidoEntreHojasAlestra = 0.0;
+    private double totalRepetidoEntreHojasTelcelAtt = 0.0;
+
     public MotorCoincidencia(ResultadoParseo alestra, ResultadoParseo telcel, ResultadoParseo att) {
-        this(alestra, telcel, att, new PrimeraCoincidenciaGanaReglaAmbigua());
+        this(alestra, telcel, att, new PrimeraEnLaHojaGanaReglaAmbigua());
     }
 
     public MotorCoincidencia(
@@ -126,16 +137,85 @@ public class MotorCoincidencia {
         return new ResultadoTabla(tabla.identificador(), filas);
     }
 
-    private ResultadoFilaPlantilla resolverFila(TablaConFilas tabla, FilaPlantilla fila) {
-        String id = tabla.identificador();
+    /** Dónde está la clave que se resuelve: para la regla ambigua y el reporte. */
+    private record Ubicacion(String hoja, String tabla, Integer filaExcel, String campo) {
+    }
+
+    private ResultadoFilaPlantilla resolverFila(TablaConFilas tabla, FilaPlantilla filaOriginal) {
+        FilaPlantilla fila = normalizarClaves(filaOriginal);
         return switch (tabla.tipo()) {
-            case SIMPLE_LINEA -> ResultadoFilaPlantilla.simple(resolverContraAlestra(fila.linea(), id));
-            case SIMPLE_ICCID -> ResultadoFilaPlantilla.simple(resolverContraTelcelAtt(fila.iccid(), id));
-            case SIMPLE_CASCADA -> ResultadoFilaPlantilla.simple(resolverCascada(fila.linea(), fila.iccid(), id));
+            case SIMPLE_LINEA, SIMPLE_ICCID, SIMPLE_CASCADA -> ResultadoFilaPlantilla.simple(resolverSimple(fila, tabla));
             case DUAL_SIM -> ResultadoFilaPlantilla.dualSim(
-                    resolverContraAlestra(fila.linea1(), id),
-                    resolverContraAlestra(fila.linea2(), id));
+                    resolverContraAlestra(fila.linea1(), ubicacion(tabla, fila, "LINEA_1")),
+                    resolverContraAlestra(fila.linea2(), ubicacion(tabla, fila, "LINEA_2")));
         };
+    }
+
+    /**
+     * Tablas simples — decisión D-016 (spec 10): la columna {@code SIM} /
+     * {@code Carrier} decide dónde se busca. Alestra (y Multicarrier) solo
+     * por línea; Telcel y ATT solo por ICCID. Si la columna falta o trae otro
+     * valor, se busca según el tipo de tabla, como antes.
+     */
+    private Asignacion resolverSimple(FilaPlantilla fila, TablaConFilas tabla) {
+        return switch (OperadorPlantilla.desde(fila.sim())) {
+            case ALESTRA -> {
+                Asignacion a = resolverContraAlestra(fila.linea(), ubicacion(tabla, fila, "LINEA"));
+                if (!a.tieneMatch() && fila.iccid() != null && telcelAtt.containsKey(fila.iccid())) {
+                    avisarCarrierNoCoincide(fila, tabla, fila.iccid(), "Telcel/ATT", "Alestra");
+                }
+                yield a;
+            }
+            case TELCEL_ATT -> {
+                Asignacion a = resolverContraTelcelAtt(fila.iccid(), ubicacion(tabla, fila, "ICCID"));
+                if (!a.tieneMatch() && fila.linea() != null && alestra.containsKey(fila.linea())) {
+                    avisarCarrierNoCoincide(fila, tabla, fila.linea(), "Alestra", "Telcel/ATT");
+                }
+                yield a;
+            }
+            case NO_RECONOCIDO -> switch (tabla.tipo()) {
+                case SIMPLE_LINEA -> resolverContraAlestra(fila.linea(), ubicacion(tabla, fila, "LINEA"));
+                case SIMPLE_ICCID -> resolverContraTelcelAtt(fila.iccid(), ubicacion(tabla, fila, "ICCID"));
+                case SIMPLE_CASCADA -> resolverCascada(fila, tabla);
+                case DUAL_SIM -> throw new IllegalStateException("DUAL_SIM no es una tabla simple");
+            };
+        };
+    }
+
+    private void avisarCarrierNoCoincide(
+            FilaPlantilla fila, TablaConFilas tabla, String clave, String dondeSiEsta, String operadorDeLaFila) {
+        String ubicacion = fila.filaExcel() == null
+                ? "'" + tabla.hoja() + "'"
+                : "'" + tabla.hoja() + "' fila " + fila.filaExcel();
+        avisosGeneradosEnMatching.add(new AvisoParseo(TipoAviso.CARRIER_NO_COINCIDE, clave,
+                "En " + ubicacion + " la columna SIM/Carrier dice '" + fila.sim().strip() + "' ("
+                        + operadorDeLaFila + "), pero la SIM solo está en " + dondeSiEsta
+                        + ". Se dejó en 0 MB; revisar el operador o la clave en la plantilla."));
+    }
+
+    private static Ubicacion ubicacion(TablaConFilas tabla, FilaPlantilla fila, String campo) {
+        return new Ubicacion(tabla.hoja(), tabla.identificador(), fila.filaExcel(), campo);
+    }
+
+    /**
+     * Aplica {@link NormalizadorClave} a las claves leídas de la plantilla,
+     * la misma limpieza que ya aplicaron los parsers a las claves de
+     * origen. Una clave que queda vacía se trata como celda en blanco
+     * ({@code null}).
+     */
+    private static FilaPlantilla normalizarClaves(FilaPlantilla fila) {
+        return new FilaPlantilla(
+                claveONull(fila.linea()),
+                claveONull(fila.iccid()),
+                claveONull(fila.linea1()),
+                claveONull(fila.linea2()),
+                fila.sim(),
+                fila.filaExcel());
+    }
+
+    private static String claveONull(String valor) {
+        String normalizada = NormalizadorClave.normalizar(valor);
+        return normalizada.isEmpty() ? null : normalizada;
     }
 
     /**
@@ -144,16 +224,25 @@ public class MotorCoincidencia {
      * columna {@code SIM} (operador) para decidir dónde buscar — se
      * asume que la misma línea/ICCID nunca aparece en dos operadores a
      * la vez (spec 03).
+     *
+     * <p>La decisión de caer a {@code ICCID} se toma según si la línea
+     * <b>existe</b> en Alestra, no según la {@link Asignacion} devuelta:
+     * cuando la línea está repetida en la plantilla, la {@link ReglaAmbigua}
+     * puede devolver una asignación sin fuente (p. ej. la regla default deja
+     * la fila en 0 MB), y eso no significa que la línea no haya matcheado.
+     * Si se usara {@code tieneMatch()} para decidir, la fila repetida
+     * buscaría su ICCID en Telcel + ATT y podría quedarse con el consumo
+     * de otro operador.</p>
      */
-    private Asignacion resolverCascada(String linea, String iccid, String tablaIdentificador) {
-        Asignacion porLinea = resolverContraAlestra(linea, tablaIdentificador);
-        if (porLinea.tieneMatch()) {
-            return porLinea;
+    private Asignacion resolverCascada(FilaPlantilla fila, TablaConFilas tabla) {
+        String linea = fila.linea();
+        if (linea != null && alestra.containsKey(linea)) {
+            return resolverContraAlestra(linea, ubicacion(tabla, fila, "LINEA"));
         }
-        return resolverContraTelcelAtt(iccid, tablaIdentificador);
+        return resolverContraTelcelAtt(fila.iccid(), ubicacion(tabla, fila, "ICCID"));
     }
 
-    private Asignacion resolverContraAlestra(String linea, String tablaIdentificador) {
+    private Asignacion resolverContraAlestra(String linea, Ubicacion ubicacion) {
         if (linea == null) {
             return Asignacion.sinMatch();
         }
@@ -163,17 +252,17 @@ public class MotorCoincidencia {
         }
         lineasConsultadasAlestra.add(linea);
 
-        int aparicion = aparicionesAlestra.merge(linea, 1, Integer::sum);
-        if (aparicion >= 2) {
-            return resolverAmbiguo(linea, FuenteConsumo.ALESTRA, consumo, tablaIdentificador, aparicion,
-                    valor -> totalEscritoAlestra += valor);
+        List<AparicionSim> previas = aparicionesAlestra.computeIfAbsent(linea, k -> new ArrayList<>());
+        Asignacion asignacion = resolverAparicion(linea, FuenteConsumo.ALESTRA, consumo, ubicacion, previas);
+        totalEscritoAlestra += asignacion.consumoMb();
+        if (repetidaEntreHojas(previas, ubicacion)) {
+            totalRepetidoEntreHojasAlestra += asignacion.consumoMb();
         }
-
-        totalEscritoAlestra += consumo;
-        return new Asignacion(consumo, FuenteConsumo.ALESTRA);
+        previas.add(aparicion(ubicacion, asignacion));
+        return asignacion;
     }
 
-    private Asignacion resolverContraTelcelAtt(String iccid, String tablaIdentificador) {
+    private Asignacion resolverContraTelcelAtt(String iccid, Ubicacion ubicacion) {
         if (iccid == null) {
             return Asignacion.sinMatch();
         }
@@ -183,40 +272,75 @@ public class MotorCoincidencia {
         }
         iccidsConsultadosTelcelAtt.add(iccid);
 
-        int aparicion = aparicionesTelcelAtt.merge(iccid, 1, Integer::sum);
-        if (aparicion >= 2) {
-            return resolverAmbiguo(iccid, FuenteConsumo.TELCEL_ATT, consumo, tablaIdentificador, aparicion,
-                    valor -> totalEscritoTelcelAtt += valor);
+        List<AparicionSim> previas = aparicionesTelcelAtt.computeIfAbsent(iccid, k -> new ArrayList<>());
+        Asignacion asignacion = resolverAparicion(iccid, FuenteConsumo.TELCEL_ATT, consumo, ubicacion, previas);
+        totalEscritoTelcelAtt += asignacion.consumoMb();
+        if (repetidaEntreHojas(previas, ubicacion)) {
+            totalRepetidoEntreHojasTelcelAtt += asignacion.consumoMb();
         }
-
-        totalEscritoTelcelAtt += consumo;
-        return new Asignacion(consumo, FuenteConsumo.TELCEL_ATT);
-    }
-
-    private Asignacion resolverAmbiguo(
-            String clave,
-            FuenteConsumo fuente,
-            double consumoMb,
-            String tablaIdentificador,
-            int numeroDeAparicion,
-            DoubleConsumer acumularEnTotalEscrito) {
-        ContextoFila contexto = new ContextoFila(clave, fuente, consumoMb, tablaIdentificador, numeroDeAparicion);
-        ResolucionAmbigua resolucion = reglaAmbigua.resolver(contexto);
-
-        acumularEnTotalEscrito.accept(resolucion.asignacion().consumoMb());
-        resolucion.advertenciaOpcional().ifPresent(detalle ->
-                avisosGeneradosEnMatching.add(new AvisoParseo(TipoAviso.CLAVE_DUPLICADA, clave, detalle)));
-
-        return resolucion.asignacion();
+        previas.add(aparicion(ubicacion, asignacion));
+        return asignacion;
     }
 
     /**
-     * Cierra el matching y calcula "no encontrados" y consistencia de
-     * totales. Debe llamarse una sola vez, después de resolver **todas**
+     * Primera aparición: el consumo de la fuente. De la segunda en adelante:
+     * lo que decida la {@link ReglaAmbigua}.
+     */
+    private Asignacion resolverAparicion(
+            String clave,
+            FuenteConsumo fuente,
+            double consumoMb,
+            Ubicacion ubicacion,
+            List<AparicionSim> previas) {
+        if (previas.isEmpty()) {
+            return new Asignacion(consumoMb, fuente);
+        }
+        ContextoFila contexto = new ContextoFila(clave, fuente, consumoMb,
+                ubicacion.hoja(), ubicacion.tabla(), ubicacion.filaExcel(),
+                previas.size() + 1, yaAparecioEnLaHoja(previas, ubicacion.hoja()));
+        ResolucionAmbigua resolucion = reglaAmbigua.resolver(contexto);
+        resolucion.advertenciaOpcional().ifPresent(detalle ->
+                avisosGeneradosEnMatching.add(new AvisoParseo(TipoAviso.CLAVE_DUPLICADA, clave, detalle)));
+        return resolucion.asignacion();
+    }
+
+    /** La clave ya apareció en otra hoja, pero todavía no en esta (D-001). */
+    private static boolean repetidaEntreHojas(List<AparicionSim> previas, Ubicacion ubicacion) {
+        return !previas.isEmpty() && !yaAparecioEnLaHoja(previas, ubicacion.hoja());
+    }
+
+    private static boolean yaAparecioEnLaHoja(List<AparicionSim> previas, String hoja) {
+        for (AparicionSim previa : previas) {
+            if (previa.hoja().equals(hoja)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static AparicionSim aparicion(Ubicacion ubicacion, Asignacion asignacion) {
+        return new AparicionSim(ubicacion.hoja(), ubicacion.tabla(), ubicacion.filaExcel(),
+                ubicacion.campo(), asignacion.consumoMb());
+    }
+
+    /**
+     * Cierra el matching y calcula "no encontrados", totales por fuente y
+     * consistencia de totales.
+     *
+     * <p>Alcance real de la consistencia interna: compara contadores que el
+     * propio motor lleva, así que solo puede saltar si una
+     * {@link ReglaAmbigua} vuelve a escribir el consumo de una clave
+     * repetida <b>dentro de la misma hoja</b> (MB duplicados). Lo repetido
+     * entre hojas distintas (D-001) es intencional y se descuenta
+     * ({@link TotalesFuente#totalRepetidoEntreHojas()}). <b>No</b> verifica lo que quedó escrito en
+     * el .xlsx: para eso está {@link VerificadorReporteEscrito}, que debe
+     * llamarse después de escribir el archivo.</p>
+     *
+     * <p>Debe llamarse una sola vez, después de resolver <b>todas</b>
      * las tablas de la plantilla con {@link #resolverTabla} /
      * {@link #resolverTablas}. Llamarla antes de tiempo produce
      * "no encontrados" incompletos (claves que sí hubieran matcheado en
-     * una hoja aún no procesada).
+     * una hoja aún no procesada).</p>
      */
     public ResultadoMatching finalizar() {
         List<NoEncontrado> noEncontrados = new ArrayList<>();
@@ -224,20 +348,46 @@ public class MotorCoincidencia {
                 alestra, lineasConsultadasAlestra, FuenteConsumo.ALESTRA, noEncontrados);
         double totalNoEncontradoTelcelAtt = acumularNoEncontrados(
                 telcelAtt, iccidsConsultadosTelcelAtt, FuenteConsumo.TELCEL_ATT, noEncontrados);
+        // Orden estable (fuente, clave): los Map de origen no garantizan
+        // orden, y el reporte debe salir igual en cada corrida.
+        noEncontrados.sort(Comparator.comparing(NoEncontrado::fuente).thenComparing(NoEncontrado::clave));
 
         double totalOrigenAlestra = sumar(alestra);
         double totalOrigenTelcelAtt = sumar(telcelAtt);
 
+        List<TotalesFuente> totales = List.of(
+                new TotalesFuente(FuenteConsumo.ALESTRA, totalOrigenAlestra, totalEscritoAlestra,
+                        totalNoEncontradoAlestra, totalRepetidoEntreHojasAlestra),
+                new TotalesFuente(FuenteConsumo.TELCEL_ATT, totalOrigenTelcelAtt, totalEscritoTelcelAtt,
+                        totalNoEncontradoTelcelAtt, totalRepetidoEntreHojasTelcelAtt));
+
         List<AdvertenciaConsistencia> advertencias = new ArrayList<>();
-        agregarSiInconsistente(advertencias, FuenteConsumo.ALESTRA,
-                totalOrigenAlestra, totalEscritoAlestra, totalNoEncontradoAlestra);
-        agregarSiInconsistente(advertencias, FuenteConsumo.TELCEL_ATT,
-                totalOrigenTelcelAtt, totalEscritoTelcelAtt, totalNoEncontradoTelcelAtt);
+        for (TotalesFuente t : totales) {
+            agregarSiInconsistente(advertencias, t);
+        }
 
         List<AvisoParseo> avisos = new ArrayList<>(avisosHeredados);
         avisos.addAll(avisosGeneradosEnMatching);
 
-        return new ResultadoMatching(noEncontrados, advertencias, avisos);
+        List<SimRepetida> repetidas = new ArrayList<>();
+        acumularRepetidas(aparicionesAlestra, FuenteConsumo.ALESTRA, alestra, repetidas);
+        acumularRepetidas(aparicionesTelcelAtt, FuenteConsumo.TELCEL_ATT, telcelAtt, repetidas);
+        repetidas.sort(Comparator.comparing(SimRepetida::fuente).thenComparing(SimRepetida::clave));
+
+        return new ResultadoMatching(noEncontrados, advertencias, avisos, totales, repetidas);
+    }
+
+    private static void acumularRepetidas(
+            Map<String, List<AparicionSim>> apariciones,
+            FuenteConsumo fuente,
+            Map<String, Double> origen,
+            List<SimRepetida> destino) {
+        for (Map.Entry<String, List<AparicionSim>> entrada : apariciones.entrySet()) {
+            if (entrada.getValue().size() >= 2) {
+                destino.add(new SimRepetida(fuente, entrada.getKey(), origen.get(entrada.getKey()),
+                        entrada.getValue()));
+            }
+        }
     }
 
     private static double sumar(Map<String, Double> mapa) {
@@ -263,15 +413,11 @@ public class MotorCoincidencia {
         return total;
     }
 
-    private static void agregarSiInconsistente(
-            List<AdvertenciaConsistencia> destino,
-            FuenteConsumo fuente,
-            double totalOrigen,
-            double totalAsignado,
-            double totalNoEncontrado) {
-        double diferencia = totalOrigen - (totalAsignado + totalNoEncontrado);
-        if (Math.abs(diferencia) > MARGEN_TOLERANCIA_MB) {
-            destino.add(new AdvertenciaConsistencia(fuente, totalOrigen, totalAsignado, totalNoEncontrado));
+    private static void agregarSiInconsistente(List<AdvertenciaConsistencia> destino, TotalesFuente t) {
+        AdvertenciaConsistencia candidata = new AdvertenciaConsistencia(t.fuente(), t.totalOrigen(),
+                t.totalAsignado(), t.totalNoEncontrado(), t.totalRepetidoEntreHojas());
+        if (Math.abs(candidata.diferencia()) > MARGEN_TOLERANCIA_MB) {
+            destino.add(candidata);
         }
     }
 }

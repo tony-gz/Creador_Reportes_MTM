@@ -1,15 +1,15 @@
+# Configuración de tests. La URL/usuario del datasource los fija
+# PostgresEmbebido (PostgreSQL real levantado en un puerto libre), así que
+# aquí no se declaran. El esquema lo aplica Flyway igual que en producción.
 spring:
-  datasource:
-    url: jdbc:h2:mem:sim-reports-test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+  flyway:
+    enabled: true
 
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: validate
     properties:
       hibernate:
         format_sql: true
-    show-sql: true
+    show-sql: false

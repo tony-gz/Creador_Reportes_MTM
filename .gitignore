@@ -2,4 +2,7 @@ target/
 .idea/
 *.iml
 .github/modernize/
-WhatsApp Image 2026-09-04 at 9.56.33 PM.jpeg
+# Capturas e imágenes sueltas que no son parte del proyecto
+WhatsApp Image *
+# Archivos reales de clientes (reportes, BDs de operadores): nunca al repo
+archivos/

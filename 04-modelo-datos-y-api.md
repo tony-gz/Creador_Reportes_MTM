@@ -90,6 +90,13 @@ excepciones crudas de Apache POI.
   `activa = true` de `PlantillaConfig`, dentro de un método
   `@Transactional`, tanto al leerla para generar un reporte como al
   reemplazarla.
+- **Actualizado (2026-11-05):** además del lock, la base de datos
+  garantiza la regla con una restricción de exclusión parcial diferida
+  (`ex_plantilla_config_una_activa`, migración Flyway V1). El lock solo
+  funciona si ya existe una fila activa; en la primera subida no hay nada
+  que bloquear, y es la restricción la que impide quedar con dos versiones
+  activas. Al ser diferida, el reemplazo (insertar la nueva y desactivar la
+  anterior) funciona en cualquier orden dentro de la misma transacción.
 - Motivo: es la solución nativa de Postgres para este problema exacto, no
   agrega ninguna dependencia nueva al proyecto, y es proporcional al riesgo
   real (uso ocasional por una persona) en vez de sobre-diseñar para un

@@ -3,11 +3,13 @@ package com.simreports.core.parsers;
 import com.simreports.core.ArchivoFormatoInvalidoException;
 import com.simreports.core.AvisoParseo;
 import com.simreports.core.HeaderResolver;
+import com.simreports.core.NormalizadorClave;
 import com.simreports.core.OrigenParser;
 import com.simreports.core.ResultadoParseo;
 import com.simreports.core.TipoAviso;
 
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
@@ -115,8 +117,12 @@ public class AlestraParser implements OrigenParser {
         Map<String, List<Double>> valoresPorLinea = new LinkedHashMap<>();
         List<AvisoParseo> avisos = new ArrayList<>();
 
+        // El rango de la tabla nativa incluye la fila de totales si la
+        // tabla la tiene activada ("Fila de totales" en Excel); esa fila no
+        // es una línea real y, si se leyera, sumaría el total completo como
+        // si fuera el consumo de una línea llamada "Total".
         int primeraFilaDatos = tabla.getStartRowIndex() + 1;
-        int ultimaFilaDatos = tabla.getEndRowIndex();
+        int ultimaFilaDatos = tabla.getEndRowIndex() - Math.max(tabla.getTotalsRowCount(), 0);
 
         for (int r = primeraFilaDatos; r <= ultimaFilaDatos; r++) {
             Row fila = hoja.getRow(r);
@@ -124,7 +130,7 @@ public class AlestraParser implements OrigenParser {
                 continue;
             }
 
-            String linea = formatter.formatCellValue(fila.getCell(colLinea)).trim();
+            String linea = NormalizadorClave.normalizar(leerLineaComoTexto(fila.getCell(colLinea), formatter));
             if (linea.isEmpty()) {
                 avisos.add(new AvisoParseo(
                         TipoAviso.CLAVE_VACIA_O_MALFORMADA,
@@ -167,7 +173,8 @@ public class AlestraParser implements OrigenParser {
      * Lee una celda de consumo como número. Acepta celdas numéricas
      * (caso esperado), fórmulas cuyo resultado cacheado sea numérico, y
      * texto que en realidad representa un número (defensivo — el
-     * archivo real no debería traer esto, pero no cuesta tolerarlo).
+     * archivo real no debería traer esto, pero no cuesta tolerarlo),
+     * interpretado con {@link LectorNumero}.
      * Cualquier otro caso (celda nula, texto no numérico) devuelve
      * {@code null} para que la fila se excluya con un aviso, en vez de
      * lanzar una excepción cruda de Apache POI.
@@ -184,16 +191,51 @@ public class AlestraParser implements OrigenParser {
                     && cell.getCachedFormulaResultType() == CellType.NUMERIC) {
                 return cell.getNumericCellValue();
             }
-            if (cell.getCellType() == CellType.STRING) {
-                String texto = cell.getStringCellValue().trim().replace(",", "");
-                if (texto.isEmpty()) {
-                    return null;
-                }
-                return Double.parseDouble(texto);
+            if (cell.getCellType() == CellType.STRING
+                    || (cell.getCellType() == CellType.FORMULA
+                    && cell.getCachedFormulaResultType() == CellType.STRING)) {
+                return LectorNumero.parsear(cell.getStringCellValue());
             }
-        } catch (NumberFormatException e) {
+        } catch (IllegalStateException e) {
             return null;
         }
         return null;
+    }
+
+    /**
+     * Lee la celda de LINEA como texto, sin depender del formato de celda
+     * que haya dejado el operador:
+     * <ul>
+     *   <li>Número entero (caso de una línea guardada como número): se
+     *       escribe tal cual, sin {@code .0} ni notación científica y sin
+     *       aplicar formatos de visualización como {@code (00) 0000-0000}.
+     *       Una línea de 10 dígitos cabe exacta en un {@code double}.</li>
+     *   <li>Fórmula: se usa el resultado cacheado, no el texto de la
+     *       fórmula.</li>
+     *   <li>Texto: tal cual (la limpieza la hace
+     *       {@link NormalizadorClave}).</li>
+     * </ul>
+     */
+    private String leerLineaComoTexto(Cell cell, DataFormatter formatter) {
+        if (cell == null) {
+            return "";
+        }
+        CellType tipo = cell.getCellType() == CellType.FORMULA
+                ? cell.getCachedFormulaResultType()
+                : cell.getCellType();
+        if (tipo == CellType.NUMERIC) {
+            double valor = cell.getNumericCellValue();
+            if (valor == Math.rint(valor) && Math.abs(valor) < 1e15) {
+                return String.valueOf((long) valor);
+            }
+            CellStyle estilo = cell.getCellStyle();
+            return estilo == null
+                    ? String.valueOf(valor)
+                    : formatter.formatRawCellContents(valor, estilo.getDataFormat(), estilo.getDataFormatString());
+        }
+        if (tipo == CellType.STRING) {
+            return cell.getStringCellValue();
+        }
+        return "";
     }
 }

@@ -30,8 +30,26 @@
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <poi.version>5.2.5</poi.version>
+        <!-- >= 5.4.0 por CVE-2025-31672 (entradas zip duplicadas en OOXML);
+             la app recibe .xlsx subidos por usuarios. -->
+        <poi.version>5.5.1</poi.version>
+        <embedded-postgres.version>2.2.2</embedded-postgres.version>
+        <!-- Version de PostgreSQL que levantan los tests. Mantenerla igual a
+             la mayor (major) del servidor real. -->
+        <embedded-postgres-binaries.version>18.6.0</embedded-postgres-binaries.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.zonky.test.postgres</groupId>
+                <artifactId>embedded-postgres-binaries-bom</artifactId>
+                <version>${embedded-postgres-binaries.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <!-- Fase 2: persistencia JPA + Postgres (spec 04). -->
@@ -43,6 +61,16 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
+        </dependency>
+        <!-- Migraciones de esquema versionadas (src/main/resources/db/migration).
+             Hibernate solo valida el esquema (ddl-auto: validate), no lo crea. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
 
         <!-- Apache POI - motor de parsing de Fase 1 (spec 01/02) y, mas
@@ -67,12 +95,14 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- H2 solo para tests (perfil de test, modo PostgreSQL) - en
-             produccion/desarrollo real siempre se usa Postgres (spec 04),
-             H2 nunca se declara fuera de scope test. -->
+        <!-- PostgreSQL real para los tests de persistencia, sin Docker: los
+             binarios de Postgres vienen como dependencia Maven y se levantan
+             en un puerto libre al arrancar los tests. Reemplaza a H2, que
+             ocultaba diferencias reales con Postgres (p. ej. @Lob -> oid). -->
         <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
+            <groupId>io.zonky.test</groupId>
+            <artifactId>embedded-postgres</artifactId>
+            <version>${embedded-postgres.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

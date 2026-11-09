@@ -45,6 +45,13 @@ public interface HeaderResolver {
      * colapsara espacios (a un único espacio) no habría hecho coincidir
      * con {@code "CONSUMO(MB)"}.</p>
      *
+     * <p>"Espacio" incluye también los caracteres invisibles que Excel y
+     * los exports suelen colar en un encabezado y que {@code \s} de Java
+     * no cubre: espacio de no separación ({@code U+00A0}) y demás
+     * separadores Unicode ({@code \p{Z}}), la marca de orden de bytes
+     * ({@code U+FEFF}, típica al inicio de un .csv guardado como "UTF-8
+     * con BOM") y el espacio de ancho cero ({@code U+200B}).</p>
+     *
      * @param header encabezado real, puede ser {@code null}.
      * @return el encabezado en mayúsculas, sin espacios al inicio/final
      *         ni internos. Cadena vacía si {@code header} es
@@ -54,6 +61,6 @@ public interface HeaderResolver {
         if (header == null) {
             return "";
         }
-        return header.trim().toUpperCase(Locale.ROOT).replaceAll("\\s+", "");
+        return header.trim().toUpperCase(Locale.ROOT).replaceAll("[\\s\\p{Z}\\uFEFF\\u200B]+", "");
     }
 }

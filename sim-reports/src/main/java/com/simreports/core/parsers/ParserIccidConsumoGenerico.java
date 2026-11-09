@@ -3,23 +3,27 @@ package com.simreports.core.parsers;
 import com.simreports.core.ArchivoFormatoInvalidoException;
 import com.simreports.core.AvisoParseo;
 import com.simreports.core.HeaderResolver;
+import com.simreports.core.NormalizadorClave;
 import com.simreports.core.ResultadoParseo;
 import com.simreports.core.TipoAviso;
 
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,13 +46,51 @@ import java.util.Optional;
  * primera fila: busca la primera fila, dentro de un límite razonable de
  * filas, que resuelva las dos columnas obligatorias (ICCID y consumo) —
  * ver spec 02, sección "Filas de metadata antes del encabezado real".
- * </p>
+ * Esa fila puede traer <b>varios bloques</b> ICCID + consumo lado a lado
+ * (formato real del ATT consolidado a mano, igual que la hoja BD_ATT del
+ * reporte); se leen todos. Una fila vacía dentro de un bloque se ignora sin
+ * aviso.</p>
+ *
+ * <p><b>Lectura de .xlsx.</b> Cada celda conserva su texto <i>y</i>, si
+ * es numérica, su valor numérico real ({@link Celda}). Así:</p>
+ * <ul>
+ *   <li>El consumo se toma del valor numérico real, no del texto mostrado
+ *       por {@code DataFormatter} (que aplica el formato de celda: con
+ *       {@code #,##0.00}, {@code 1234.5678} se mostraría como
+ *       {@code 1,234.57} y {@code 0.004} como {@code 0.00}).</li>
+ *   <li>Un ICCID guardado como número en Excel ya viene dañado en el
+ *       propio archivo (un {@code double} no conserva los 19-20 dígitos
+ *       de un ICCID) y se mostraría como {@code 8.95202E+18}. Esa fila se
+ *       excluye con un aviso explícito en vez de cargar una clave
+ *       corrupta que nunca va a coincidir.</li>
+ * </ul>
+ *
+ * <p><b>Lectura de .csv.</b> Lector RFC 4180: respeta campos entre
+ * comillas dobles (con comas o saltos de línea dentro, y {@code ""} como
+ * comilla escapada), y descarta el BOM UTF-8 inicial si el archivo se
+ * guardó como "UTF-8 con BOM" (caso típico al guardar el ATT consolidado
+ * desde Excel). Si el contenido no es UTF-8 válido, se lee como
+ * Windows-1252 (codificación por defecto de Excel en Windows en español)
+ * en vez de llenar el texto de caracteres de reemplazo.</p>
+ *
+ * <p>Las claves (ICCID) se limpian con {@link NormalizadorClave} y los
+ * consumos escritos como texto se leen con {@link LectorNumero}, igual que
+ * en el resto de parsers.</p>
  */
 class ParserIccidConsumoGenerico {
 
     private static final String CAMPO_ICCID = "ICCID";
     private static final String CAMPO_CONSUMO = "CONSUMO";
     private static final int LIMITE_FILAS_BUSQUEDA_ENCABEZADO = 20;
+
+    /**
+     * Mayor entero que un {@code double} (y Excel, que guarda 15 dígitos
+     * significativos) representa sin redondeo. Un ICCID numérico por
+     * encima de este valor ya perdió dígitos.
+     */
+    private static final double MAX_ENTERO_EXACTO = 1e15;
+
+    private static final Charset WINDOWS_1252 = Charset.forName("windows-1252");
 
     private final HeaderResolver headerResolver;
     private final String nombreOperador;
@@ -69,90 +111,197 @@ class ParserIccidConsumoGenerico {
                     "No se pudo leer el archivo de " + nombreOperador + ": " + e.getMessage(), e);
         }
 
-        List<List<String>> filas = pareceXlsx(contenido) ? extraerFilasXlsx(contenido) : extraerFilasCsv(contenido);
+        List<List<Celda>> filas = pareceXlsx(contenido) ? extraerFilasXlsx(contenido) : extraerFilasCsv(contenido);
         Encabezado encabezado = buscarEncabezado(filas);
+        boolean variosBloques = encabezado.bloques().size() > 1;
 
         Map<String, Double> acumulado = new LinkedHashMap<>();
         List<AvisoParseo> avisos = new ArrayList<>();
 
         for (int r = encabezado.filaIndice() + 1; r < filas.size(); r++) {
-            List<String> fila = filas.get(r);
-
-            String iccid = normalizarValorTexto(obtenerCelda(fila, encabezado.colIccid()));
-            if (iccid.isEmpty()) {
-                avisos.add(new AvisoParseo(
-                        TipoAviso.CLAVE_VACIA_O_MALFORMADA,
-                        "",
-                        "Fila " + (r + 1) + " de " + nombreOperador + ": ICCID vacío o no legible, se "
-                                + "excluyó de la suma."));
-                continue;
+            List<Celda> fila = filas.get(r);
+            for (int b = 0; b < encabezado.bloques().size(); b++) {
+                Bloque bloque = encabezado.bloques().get(b);
+                String dondeFila = "Fila " + (r + 1) + (variosBloques ? " (bloque " + (b + 1) + ")" : "")
+                        + " de " + nombreOperador;
+                procesarCelda(obtenerCelda(fila, bloque.colIccid()), obtenerCelda(fila, bloque.colConsumo()),
+                        dondeFila, acumulado, avisos);
             }
-
-            Double consumo = parsearNumero(obtenerCelda(fila, encabezado.colConsumo()));
-            if (consumo == null) {
-                avisos.add(new AvisoParseo(
-                        TipoAviso.CLAVE_VACIA_O_MALFORMADA,
-                        iccid,
-                        "Fila " + (r + 1) + " de " + nombreOperador + ": el consumo no es un valor numérico "
-                                + "legible, se excluyó de la suma."));
-                continue;
-            }
-
-            // Nota de diseño: a diferencia de Alestra, aquí NO se genera
-            // un aviso de "clave duplicada" cuando el mismo ICCID
-            // aparece varias veces — es la forma normal del archivo
-            // (una fila por fecha, spec 02), no una anomalía a reportar.
-            acumulado.merge(iccid, consumo, Double::sum);
         }
 
         return new ResultadoParseo(acumulado, avisos);
     }
 
-    private record Encabezado(int filaIndice, int colIccid, int colConsumo) {
+    private void procesarCelda(Celda celdaIccid, Celda celdaConsumo, String dondeFila,
+                               Map<String, Double> acumulado, List<AvisoParseo> avisos) {
+        // Fila vacía en este bloque (p. ej. un bloque más corto que los
+        // de al lado, o filas en blanco al final): no es un dato, no se
+        // reporta.
+        if (estaVacia(celdaIccid) && estaVacia(celdaConsumo)) {
+            return;
+        }
+
+        if (celdaIccid.esNumerica() && !esEnteroExacto(celdaIccid.numero())) {
+            Double consumoPerdido = leerConsumo(celdaConsumo);
+            avisos.add(new AvisoParseo(
+                    TipoAviso.CLAVE_VACIA_O_MALFORMADA,
+                    celdaIccid.texto(),
+                    dondeFila + ": el ICCID está guardado como número "
+                            + "en Excel (se muestra como '" + celdaIccid.texto() + "'). Un número no "
+                            + "conserva todos los dígitos de un ICCID, así que el valor ya viene dañado "
+                            + "en el archivo; se excluyó de la suma"
+                            + (consumoPerdido != null ? " (" + consumoPerdido + " MB)" : "")
+                            + ". Formatea la columna ICCID como Texto en el archivo de origen y vuelve a "
+                            + "pegar los valores."));
+            return;
+        }
+
+        String iccid = celdaIccid.esNumerica()
+                ? String.valueOf((long) celdaIccid.numero().doubleValue())
+                : NormalizadorClave.normalizar(celdaIccid.texto());
+        if (iccid.isEmpty()) {
+            avisos.add(new AvisoParseo(
+                    TipoAviso.CLAVE_VACIA_O_MALFORMADA,
+                    "",
+                    dondeFila + ": ICCID vacío o no legible, se excluyó de la suma."));
+            return;
+        }
+
+        Double consumo = leerConsumo(celdaConsumo);
+        if (consumo == null) {
+            avisos.add(new AvisoParseo(
+                    TipoAviso.CLAVE_VACIA_O_MALFORMADA,
+                    iccid,
+                    dondeFila + ": el consumo no es un valor numérico legible, se excluyó de la suma."));
+            return;
+        }
+
+        // Nota de diseño: a diferencia de Alestra, aquí NO se genera
+        // un aviso de "clave duplicada" cuando el mismo ICCID
+        // aparece varias veces — es la forma normal del archivo
+        // (una fila por fecha, spec 02), no una anomalía a reportar.
+        acumulado.merge(iccid, consumo, Double::sum);
     }
 
-    private Encabezado buscarEncabezado(List<List<String>> filas) {
+    private static boolean estaVacia(Celda celda) {
+        return !celda.esNumerica() && NormalizadorClave.quitarEspaciosExtremos(celda.texto()).isEmpty();
+    }
+
+    /**
+     * Una celda leída del archivo.
+     *
+     * @param texto  texto de la celda (en .xlsx, tal como lo mostraría
+     *               Excel según su formato). Nunca {@code null}.
+     * @param numero valor numérico real si la celda es numérica en un
+     *               .xlsx (o fórmula con resultado numérico cacheado);
+     *               {@code null} en cualquier otro caso, incluido todo
+     *               valor leído de un .csv.
+     */
+    private record Celda(String texto, Double numero) {
+
+        static final Celda VACIA = new Celda("", null);
+
+        static Celda deTexto(String texto) {
+            return new Celda(texto == null ? "" : texto, null);
+        }
+
+        boolean esNumerica() {
+            return numero != null;
+        }
+    }
+
+    /** Un par de columnas ICCID + consumo dentro de la fila de encabezado. */
+    private record Bloque(int colIccid, int colConsumo) {
+    }
+
+    /**
+     * Fila de encabezado y los bloques de columnas que contiene. Un archivo
+     * normal tiene un solo bloque; el ATT consolidado a mano suele traer
+     * varios bloques lado a lado (uno por cliente / export de Jasper, como
+     * la hoja BD_ATT del reporte), cada uno con su propio ICCID y consumo.
+     */
+    private record Encabezado(int filaIndice, List<Bloque> bloques) {
+    }
+
+    /**
+     * Busca, dentro de las primeras filas, la primera que tenga al menos una
+     * columna de ICCID y una de consumo. Cada columna ICCID se empareja con
+     * la columna de consumo más cercana a su derecha antes del siguiente
+     * ICCID. Si solo hay un ICCID y su consumo está a la izquierda, también
+     * vale.
+     */
+    private Encabezado buscarEncabezado(List<List<Celda>> filas) {
         int limite = Math.min(LIMITE_FILAS_BUSQUEDA_ENCABEZADO, filas.size());
         for (int r = 0; r < limite; r++) {
-            List<String> fila = filas.get(r);
-            Integer colIccid = null;
-            Integer colConsumo = null;
+            List<Celda> fila = filas.get(r);
+            List<Integer> colsIccid = new ArrayList<>();
+            List<Integer> colsConsumo = new ArrayList<>();
             for (int c = 0; c < fila.size(); c++) {
-                Optional<String> campo = headerResolver.resolver(fila.get(c));
-                if (campo.isPresent() && campo.get().equals(CAMPO_ICCID) && colIccid == null) {
-                    colIccid = c;
+                Optional<String> campo = headerResolver.resolver(fila.get(c).texto());
+                if (campo.isEmpty()) {
+                    continue;
                 }
-                if (campo.isPresent() && campo.get().equals(CAMPO_CONSUMO) && colConsumo == null) {
-                    colConsumo = c;
+                if (campo.get().equals(CAMPO_ICCID)) {
+                    colsIccid.add(c);
+                } else if (campo.get().equals(CAMPO_CONSUMO)) {
+                    colsConsumo.add(c);
                 }
             }
-            if (colIccid != null && colConsumo != null) {
-                return new Encabezado(r, colIccid, colConsumo);
+            if (colsIccid.isEmpty() || colsConsumo.isEmpty()) {
+                continue;
             }
+            return new Encabezado(r, emparejar(colsIccid, colsConsumo, r));
         }
         throw new ArchivoFormatoInvalidoException(
                 "No se encontró la fila de encabezado con las columnas obligatorias ICCID y de consumo en "
                         + "el archivo de " + nombreOperador + " dentro de las primeras " + limite + " filas.");
     }
 
+    private List<Bloque> emparejar(List<Integer> colsIccid, List<Integer> colsConsumo, int filaEncabezado) {
+        if (colsIccid.size() == 1) {
+            int iccid = colsIccid.get(0);
+            int consumo = colsConsumo.stream().filter(c -> c > iccid).findFirst().orElse(colsConsumo.get(0));
+            return List.of(new Bloque(iccid, consumo));
+        }
+        List<Bloque> bloques = new ArrayList<>();
+        for (int i = 0; i < colsIccid.size(); i++) {
+            int iccid = colsIccid.get(i);
+            int siguienteIccid = i + 1 < colsIccid.size() ? colsIccid.get(i + 1) : Integer.MAX_VALUE;
+            Optional<Integer> consumo = colsConsumo.stream()
+                    .filter(c -> c > iccid && c < siguienteIccid)
+                    .findFirst();
+            if (consumo.isEmpty()) {
+                throw new ArchivoFormatoInvalidoException(
+                        "En el archivo de " + nombreOperador + " (fila " + (filaEncabezado + 1) + ") la columna "
+                                + "ICCID número " + (i + 1) + " no tiene una columna de consumo a su derecha "
+                                + "antes del siguiente ICCID. Cada bloque debe ser: ICCID y luego su consumo.");
+            }
+            bloques.add(new Bloque(iccid, consumo.get()));
+        }
+        return bloques;
+    }
+
     private boolean pareceXlsx(byte[] contenido) {
         return contenido.length >= 2 && contenido[0] == 0x50 && contenido[1] == 0x4B; // firma ZIP "PK"
     }
 
-    private List<List<String>> extraerFilasXlsx(byte[] contenido) {
+    // ------------------------------------------------------------------
+    // .xlsx
+    // ------------------------------------------------------------------
+
+    private List<List<Celda>> extraerFilasXlsx(byte[] contenido) {
         try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(contenido))) {
             XSSFSheet hoja = workbook.getSheetAt(0);
             DataFormatter formatter = new DataFormatter();
-            List<List<String>> filas = new ArrayList<>();
+            List<List<Celda>> filas = new ArrayList<>();
             int ultimaFila = hoja.getLastRowNum();
             for (int r = 0; r <= ultimaFila; r++) {
                 Row fila = hoja.getRow(r);
-                List<String> celdas = new ArrayList<>();
+                List<Celda> celdas = new ArrayList<>();
                 if (fila != null) {
                     int ultimaCelda = Math.max(fila.getLastCellNum(), 0);
                     for (int c = 0; c < ultimaCelda; c++) {
-                        Cell celda = fila.getCell(c, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
-                        celdas.add(formatter.formatCellValue(celda));
+                        celdas.add(leerCeldaXlsx(fila.getCell(c), formatter));
                     }
                 }
                 filas.add(celdas);
@@ -164,51 +313,197 @@ class ParserIccidConsumoGenerico {
         }
     }
 
-    private List<List<String>> extraerFilasCsv(byte[] contenido) {
-        List<List<String>> filas = new ArrayList<>();
-        try (BufferedReader lector = new BufferedReader(
-                new InputStreamReader(new ByteArrayInputStream(contenido), StandardCharsets.UTF_8))) {
-            String linea;
-            while ((linea = lector.readLine()) != null) {
-                filas.add(Arrays.asList(linea.split(",", -1)));
+    /**
+     * Lee una celda conservando su valor numérico real. Para fórmulas usa
+     * el resultado cacheado (el que Excel guardó al salvar el archivo), no
+     * el texto de la fórmula — {@code DataFormatter.formatCellValue} sin
+     * evaluador devolvería {@code "SUM(B2:B5)"} en vez del número.
+     */
+    private Celda leerCeldaXlsx(Cell celda, DataFormatter formatter) {
+        if (celda == null) {
+            return Celda.VACIA;
+        }
+        CellType tipo = celda.getCellType() == CellType.FORMULA
+                ? celda.getCachedFormulaResultType()
+                : celda.getCellType();
+        switch (tipo) {
+            case NUMERIC: {
+                double valor = celda.getNumericCellValue();
+                CellStyle estilo = celda.getCellStyle();
+                String texto = estilo == null
+                        ? String.valueOf(valor)
+                        : formatter.formatRawCellContents(valor, estilo.getDataFormat(), estilo.getDataFormatString());
+                return new Celda(texto, valor);
             }
-        } catch (IOException e) {
-            throw new ArchivoFormatoInvalidoException(
-                    "No se pudo leer el archivo de " + nombreOperador + " como .csv: " + e.getMessage(), e);
+            case STRING:
+                return Celda.deTexto(celda.getStringCellValue());
+            case BOOLEAN:
+                return Celda.deTexto(String.valueOf(celda.getBooleanCellValue()));
+            default:
+                return Celda.VACIA;
+        }
+    }
+
+    private static boolean esEnteroExacto(double valor) {
+        return Math.abs(valor) < MAX_ENTERO_EXACTO && valor == Math.rint(valor);
+    }
+
+    // ------------------------------------------------------------------
+    // .csv
+    // ------------------------------------------------------------------
+
+    private List<List<Celda>> extraerFilasCsv(byte[] contenido) {
+        String texto = decodificarTexto(contenido);
+        if (texto.startsWith("﻿")) {
+            texto = texto.substring(1);
+        }
+
+        List<List<Celda>> filas = new ArrayList<>();
+        for (List<String> registro : leerRegistrosCsv(texto)) {
+            List<Celda> celdas = new ArrayList<>(registro.size());
+            for (String campo : registro) {
+                celdas.add(Celda.deTexto(campo));
+            }
+            filas.add(celdas);
         }
         return filas;
     }
 
-    private String obtenerCelda(List<String> fila, int indice) {
-        if (indice < 0 || indice >= fila.size()) {
-            return "";
+    /**
+     * Decodifica como UTF-8 estricto; si hay bytes que no son UTF-8 válido,
+     * reintenta como Windows-1252.
+     */
+    private static String decodificarTexto(byte[] contenido) {
+        try {
+            return StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(contenido))
+                    .toString();
+        } catch (CharacterCodingException e) {
+            return new String(contenido, WINDOWS_1252);
         }
-        String valor = fila.get(indice);
-        return valor == null ? "" : valor;
     }
 
     /**
-     * Normaliza un valor de celda a texto: quita espacios al inicio/fin
-     * y, si el valor viene envuelto en comillas simples literales (caso
-     * real de Telcel para ICCID/MSISDN, spec 02), las remueve.
+     * Lector CSV (RFC 4180) con separador coma:
+     * <ul>
+     *   <li>Un campo que empieza con {@code "} se lee hasta la comilla de
+     *       cierre; dentro puede haber comas y saltos de línea, y
+     *       {@code ""} representa una comilla literal.</li>
+     *   <li>Las comillas simples no son delimitador: se conservan en el
+     *       valor y se quitan después con {@link NormalizadorClave}
+     *       (caso real de Telcel, spec 02).</li>
+     *   <li>Fin de registro: {@code \n}, {@code \r\n} o {@code \r}. Un
+     *       salto de línea final no genera un registro vacío extra; una
+     *       línea vacía intermedia sí genera un registro con un único
+     *       campo vacío.</li>
+     *   <li>Una comilla doble abierta que nunca se cierra hace fallar el
+     *       parseo de forma explícita, en vez de tragarse en silencio el
+     *       resto del archivo dentro de un solo campo.</li>
+     * </ul>
      */
-    private String normalizarValorTexto(String valor) {
-        String v = valor.trim();
-        if (v.length() >= 2 && v.startsWith("'") && v.endsWith("'")) {
-            v = v.substring(1, v.length() - 1);
+    private List<List<String>> leerRegistrosCsv(String texto) {
+        List<List<String>> registros = new ArrayList<>();
+        List<String> registro = new ArrayList<>();
+        StringBuilder campo = new StringBuilder();
+        boolean entreComillas = false;
+        boolean registroIniciado = false;
+        int lineaInicioComillas = 0;
+        int linea = 1;
+
+        int i = 0;
+        int n = texto.length();
+        while (i < n) {
+            char ch = texto.charAt(i);
+
+            if (entreComillas) {
+                if (ch == '"') {
+                    if (i + 1 < n && texto.charAt(i + 1) == '"') {
+                        campo.append('"');
+                        i += 2;
+                        continue;
+                    }
+                    entreComillas = false;
+                } else {
+                    if (ch == '\n') {
+                        linea++;
+                    }
+                    campo.append(ch);
+                }
+                i++;
+                continue;
+            }
+
+            switch (ch) {
+                case '"':
+                    if (campo.length() == 0) {
+                        entreComillas = true;
+                        lineaInicioComillas = linea;
+                    } else {
+                        // Comilla en medio de un campo sin comillas: se
+                        // trata como carácter literal (lectura tolerante).
+                        campo.append(ch);
+                    }
+                    registroIniciado = true;
+                    break;
+                case ',':
+                    registro.add(campo.toString());
+                    campo.setLength(0);
+                    registroIniciado = true;
+                    break;
+                case '\r':
+                case '\n':
+                    if (ch == '\r' && i + 1 < n && texto.charAt(i + 1) == '\n') {
+                        i++;
+                    }
+                    registro.add(campo.toString());
+                    registros.add(registro);
+                    registro = new ArrayList<>();
+                    campo.setLength(0);
+                    registroIniciado = false;
+                    linea++;
+                    break;
+                default:
+                    campo.append(ch);
+                    registroIniciado = true;
+            }
+            i++;
         }
-        return v.trim();
+
+        if (entreComillas) {
+            throw new ArchivoFormatoInvalidoException(
+                    "El archivo .csv de " + nombreOperador + " tiene una comilla doble abierta en la línea "
+                            + lineaInicioComillas + " que nunca se cierra.");
+        }
+        if (registroIniciado) {
+            registro.add(campo.toString());
+            registros.add(registro);
+        }
+        return registros;
     }
 
-    private Double parsearNumero(String texto) {
-        String limpio = normalizarValorTexto(texto).replace(",", "");
-        if (limpio.isEmpty()) {
-            return null;
+    // ------------------------------------------------------------------
+    // Normalización de valores
+    // ------------------------------------------------------------------
+
+    private Celda obtenerCelda(List<Celda> fila, int indice) {
+        if (indice < 0 || indice >= fila.size()) {
+            return Celda.VACIA;
         }
-        try {
-            return Double.parseDouble(limpio);
-        } catch (NumberFormatException e) {
-            return null;
+        Celda celda = fila.get(indice);
+        return celda == null ? Celda.VACIA : celda;
+    }
+
+    /**
+     * Consumo de la celda: el valor numérico real si la celda es numérica
+     * (.xlsx), o el texto interpretado con {@link LectorNumero} en
+     * cualquier otro caso.
+     */
+    private Double leerConsumo(Celda celda) {
+        if (celda.esNumerica()) {
+            return celda.numero();
         }
+        return LectorNumero.parsear(celda.texto());
     }
 }

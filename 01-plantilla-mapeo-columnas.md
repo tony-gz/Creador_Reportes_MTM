@@ -49,9 +49,12 @@ Notas sobre la convención:
 - Excel no permite encabezados duplicados dentro de una misma `Table`, por
   eso las tablas dual SIM necesitan `LINEA_1`/`LINEA_2` y
   `CONSUMO(MB)_1`/`CONSUMO(MB)_2` en vez de repetir `LINEA`/`CONSUMO(MB)`.
-- El resto de columnas de la tabla (SIM, SERIE, UNIDAD, MARCA, MODELO,
-  etc.) **no necesitan estandarizarse** — el resolver las ignora, solo le
+- El resto de columnas de la tabla (SERIE, UNIDAD, MARCA, MODELO, etc.)
+  **no necesitan estandarizarse** — el resolver las ignora, solo le
   importan los campos lógicos de arriba.
+- La columna del operador sí es campo lógico desde el 2026-11-09 (D-016):
+  `SIM`, o `Carrier` (así se llama en TIENDAS EXTRA). Es opcional; sin ella
+  la tabla se resuelve como antes.
 - `CONSUMO_TOTAL` en las tablas dual SIM se recalcula siempre
   (`CONSUMO(MB)_1 + CONSUMO(MB)_2`), no se lee como dato de entrada.
 - Solo las 3 hojas con router necesitan editarse a la nomenclatura dual;
@@ -90,8 +93,14 @@ hardcodear `si-hoja-es-BIMBO-entonces-columna-tal`), porque:
 Con la convención fija, el diccionario grande de variantes desaparece. Solo
 queda una normalización mínima antes de comparar:
 ```
-normalizar(header) = header.trim().toUpperCase().replaceAll("\\s+", "")
+normalizar(header) = header.trim().toUpperCase().replaceAll("[\\s\\p{Z}\\uFEFF\\u200B]+", "")
 ```
+**Actualizado (2026-11-05):** además de `\s`, se eliminan los espacios
+invisibles que `\s` de Java no cubre: espacio de no separación (NBSP,
+`U+00A0`) y demás separadores Unicode (`\p{Z}`), BOM (`U+FEFF`, típico
+al inicio de un `.csv` "UTF-8 con BOM") y espacio de ancho cero
+(`U+200B`).
+
 **Actualizado con datos reales de Fase 0:** la versión original de esta
 normalización solo *colapsaba* espacios múltiples a uno (`replaceAll("\\s+",
 " ")`), pero 3 de las 18 hojas reales traen `"CONSUMO (MB)"` con **un solo
@@ -152,9 +161,8 @@ Reglas de clasificación de la tabla, una vez resueltos los campos:
   intenta primero `LINEA` contra Alestra y, solo si no hay match, `ICCID`
   contra Telcel + ATT. Se asume que la misma línea/ICCID nunca aparece en
   dos operadores a la vez, por lo que no hace falta desambiguar con la
-  columna `SIM` (que indica el operador) — queda como posible mejora futura
-  (validación cruzada opcional para el reporte de inconsistencias), no
-  bloquea la implementación de Fase 1.
+  columna `SIM` (que indica el operador). *Cambiado el 2026-11-09 (D-016):
+  la columna `SIM` / `Carrier` sí decide dónde buscar; ver spec 03.*
 - Tiene solo `LINEA` (sin `ICCID` ni `LINEA_2`) → tabla **simple por
   línea**: matchear contra Alestra.
 - Tiene solo `ICCID` (sin columnas de línea) → tabla **simple por ICCID**:

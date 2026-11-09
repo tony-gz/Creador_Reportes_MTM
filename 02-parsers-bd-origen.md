@@ -41,6 +41,10 @@ comportamiento uniforme cuando un encabezado no se reconoce (ver
 - Salida esperada del parser: `Map<Linea, ConsumoMB>` + lista de avisos.
 
 ## Telcel
+- **Pendiente (2026-11-05):** probar con el export crudo real; el archivo
+  analizado en spec 09 era una tabla dinámica ya preparada a mano.
+- Los ICCID de Telcel en la plantilla traen una `F` de relleno al final que
+  el export no trae; `NormalizadorClave` la quita (spec 09).
 - Formato de entrada: exportado de claro-connect, **desglosado por fecha**
   — el mismo ICCID puede aparecer en múltiples filas (una por día).
 - Columnas reales del archivo (confirmadas con archivo de muestra):
@@ -88,6 +92,12 @@ comportamiento uniforme cuando un encabezado no se reconoce (ver
 - Formato de entrada: **un solo archivo**, ya consolidado por el usuario a
   partir de varios exports de Jasper, con exactamente 2 columnas:
   `ICCID, Consumo_MB`.
+- **Confirmado con datos reales (octubre 2026, hoja BD_ATT — spec 09):** el
+  consolidado real trae **varios bloques lado a lado** (uno por cliente),
+  cada uno con `ICCID` y `Uso de ciclo hasta la fecha (MB)` (encabezado de
+  Jasper), una fila de títulos encima, bloques de distinto largo y
+  consumos guardados como texto con separador de miles (`1,170.94`). El
+  parser lee todos los bloques de la fila de encabezado.
 - El parser es **idéntico al de Telcel post-agregación** — no necesita
   lógica de agregación propia, solo leer esas dos columnas.
 - Salida esperada: `Map<ICCID, ConsumoMB>` + lista de avisos (ICCID vacío o
@@ -156,6 +166,23 @@ en su export:
 - El valor de consumo (`ConsumoMB`) sí debe leerse/parsearse como
   numérico, ya que se sumará (`groupBy` en Telcel/Alestra) o se escribirá
   directamente en la plantilla.
+- **Actualizado (2026-11-05):** en `.xlsx`, el consumo se lee del valor
+  numérico real de la celda, **no** con `DataFormatter` (que devuelve el
+  texto mostrado según el formato de celda: con `#,##0.00`, `1234.5678`
+  llegaba como `1234.57` y `0.004` como `0`). Un ICCID guardado como número
+  en Excel ya perdió dígitos en el propio archivo, así que no se intenta
+  "recuperar": la fila se excluye con un aviso que indica los MB afectados
+  y pide formatear la columna como Texto.
+- **Actualizado (2026-11-05):** la limpieza de claves (línea/ICCID) vive
+  en una sola clase, `NormalizadorClave`, que usan los tres parsers y el
+  motor sobre las claves de la plantilla: espacios (incluidos invisibles),
+  comillas simples, sufijo `.0`, guiones y paréntesis. No quita prefijos de
+  país. Los consumos escritos como texto los lee `LectorNumero` (coma o
+  punto decimal, separador de miles).
+- **Actualizado (2026-11-05):** el `.csv` se lee con un lector RFC 4180
+  (comillas dobles, comas y saltos de línea dentro de un campo) y se
+  descarta el BOM UTF-8 inicial; antes se partía cada línea con
+  `split(",")`.
 
 ## Entradas necesarias para implementar esta spec
 - ✅ Alestra y Telcel confirmados con archivos reales de Fase 0 (hallazgos

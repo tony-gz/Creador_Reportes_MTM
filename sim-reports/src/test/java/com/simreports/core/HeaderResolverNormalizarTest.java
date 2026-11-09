@@ -27,6 +27,18 @@ class HeaderResolverNormalizarTest {
     }
 
     @Test
+    void eliminaEspaciosInvisiblesQueExcelYLosCsvSuelenColar() {
+        // Espacio de no separación (NBSP), típico al copiar/pegar en Excel.
+        assertEquals("CONSUMO(MB)", HeaderResolver.normalizar("CONSUMO (MB)"));
+        // BOM al inicio de un .csv guardado como "UTF-8 con BOM".
+        assertEquals("ICCID", HeaderResolver.normalizar("﻿ICCID"));
+        // Espacio de ancho cero.
+        assertEquals("LINEA", HeaderResolver.normalizar("LI​NEA"));
+        // NBSP al final, que trim() por sí solo no quita.
+        assertEquals("ICCID", HeaderResolver.normalizar("ICCID "));
+    }
+
+    @Test
     void devuelveCadenaVaciaParaNull() {
         assertEquals("", HeaderResolver.normalizar(null));
     }
