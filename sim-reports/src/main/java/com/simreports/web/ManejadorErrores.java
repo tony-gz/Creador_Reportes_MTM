@@ -3,9 +3,7 @@ package com.simreports.web;
 import com.simreports.core.ArchivoFormatoInvalidoException;
 import com.simreports.core.plantilla.PlantillaInvalidaException;
 import com.simreports.core.plantilla.TablaPlantillaNoReconocidaException;
-import com.simreports.plantilla.SinPlantillaActivaException;
 import com.simreports.reportes.ReporteDescuadradoException;
-import com.simreports.reportes.ReporteNoEncontradoException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -46,16 +44,6 @@ public class ManejadorErrores extends ResponseEntityExceptionHandler {
     public ProblemDetail archivoInvalido(ArchivoFormatoInvalidoException e) {
         return problema(HttpStatus.BAD_REQUEST, "Archivo con formato inválido", e.getMessage(),
                 List.of(e.getMessage()));
-    }
-
-    @ExceptionHandler(SinPlantillaActivaException.class)
-    public ProblemDetail sinPlantillaActiva(SinPlantillaActivaException e) {
-        return problema(HttpStatus.CONFLICT, "Sin plantilla activa", e.getMessage(), List.of(e.getMessage()));
-    }
-
-    @ExceptionHandler(ReporteNoEncontradoException.class)
-    public ProblemDetail reporteNoEncontrado(ReporteNoEncontradoException e) {
-        return problema(HttpStatus.NOT_FOUND, "Reporte no encontrado", e.getMessage(), List.of(e.getMessage()));
     }
 
     /** Error del escritor, no de los datos: 500 con el detalle del descuadre. */

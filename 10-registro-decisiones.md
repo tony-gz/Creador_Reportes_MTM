@@ -311,6 +311,65 @@
   del 5 de noviembre, que ya traía 0.95 MB más en ese ICCID. Con los mismos
   datos de BD_TELCEL, la app da 27.39.
 
+## D-023 — La app no guarda archivos ni datos de clientes
+
+- **Fecha:** 2026-11-09
+- **Caso:** para usar la app en línea (Render + Neon, Fase 4), el usuario
+  decidió que la plantilla, las BD de los operadores y el reporte los
+  guarda él, en su computadora y en la nube.
+- **Decisión:** cada corrida recibe la plantilla, los 3 archivos y el
+  periodo, y devuelve el detalle con el `.xlsx` en la misma respuesta. Nada
+  queda en disco ni en la base de datos.
+  - Se quitan las versiones de plantilla, el mapeo guardado y su
+    corrección desde la app, y el historial de reportes con descarga.
+    Reemplaza D-019 en lo que toca a guardar el reporte final: se muestra
+    y se puede descargar como `.txt`, pero no se guarda.
+  - Queda "Revisar plantilla", que no guarda nada. Si una tabla se detecta
+    mal, se corrige en el Excel.
+  - Detalle en spec 12.
+
+## D-024 — Usuarios: un superadmin y usuarios normales
+
+- **Fecha:** 2026-11-09
+- **Decisión:** entran varias personas, cada una con su usuario y
+  contraseña.
+  - El usuario principal es **superadmin**: crea usuarios, los activa y
+    desactiva, restablece contraseñas y ve quién usa la app.
+  - Los usuarios normales generan reportes y cambian su contraseña.
+  - Detalle en spec 12.
+
+## D-025 — Registro de actividad sin datos de clientes
+
+- **Fecha:** 2026-11-09
+- **Decisión:** se registra quién, cuándo, desde qué IP y qué hizo:
+  - entradas y salidas, e intentos fallidos;
+  - reportes generados, con el periodo y si cuadraron;
+  - cambios de usuarios y contraseñas.
+
+  Nada del contenido de los archivos: ni líneas, ni ICCID, ni unidades, ni
+  consumos. Solo lo ve el superadmin.
+
+## D-026 — Seguridad del inicio de sesión
+
+- **Fecha:** 2026-11-09
+- **Decisión:**
+  - contraseñas con BCrypt, de mínimo 10 caracteres;
+  - bloqueo de 15 minutos tras 5 intentos fallidos;
+  - la sesión expira tras 30 minutos sin uso;
+  - cookies `HttpOnly`/`Secure`, protección CSRF y HTTPS (Render).
+
+  Detalle en spec 12.
+
+## D-027 — Despliegue en Render + Neon
+
+- **Fecha:** 2026-11-09
+- **Decisión:**
+  - la app va en Render (Docker) y PostgreSQL en Neon;
+  - para que Render gratis no se duerma, el usuario configura un ping cada
+    5 minutos o menos a `/salud`;
+  - `/salud` no toca la base, para que Neon sí se suspenda y no gaste sus
+    horas gratis.
+
 ---
 
 ## Regla general (confirmada el 2026-11-05)

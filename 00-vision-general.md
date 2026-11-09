@@ -35,11 +35,11 @@ Excel de 18 hojas (una por cliente).
 ## Fuera de alcance (por ahora)
 - Generar automáticamente el archivo ATT desde los múltiples exports de
   Jasper (el usuario sigue consolidándolo manualmente).
-- Autenticación/multiusuario real. Se asume **un solo usuario operando el
-  sistema a la vez**; el único punto de concurrencia cubierto es el
-  reemplazo de la plantilla activa (ver spec 04), no un modelo de permisos.
-- Política de borrado/retención de reportes históricos: por decisión
-  consciente, **no se borra nada automáticamente** por ahora (ver spec 04).
+- *(Ya no está fuera de alcance desde la Fase 4, spec 12: hay usuarios con
+  contraseña y un superadmin, D-024.)*
+- Guardar plantillas, BD o reportes: desde D-023 (spec 12) la app **no
+  guarda archivos ni datos de clientes**; el usuario los guarda en su
+  computadora o en la nube.
 - Consultar el consumo de los routers en la **API de Teltonika RMS**. Hoy
   el usuario copia a mano el aproximado del RMS para las SIMs de Telcel de
   METROBÚS y DICONSA (D-010). Es una tarea futura (spec 08).
@@ -49,8 +49,8 @@ Excel de 18 hojas (una por cliente).
 |---|---|---|
 | Backend | Java + Spring Boot | REST API |
 | Lectura/escritura Excel | Apache POI (XSSF) | tablas nativas |
-| Persistencia relacional | PostgreSQL | metadatos y versiones — ver `04` |
-| Almacenamiento de archivos | Filesystem (disco), ruta referenciada en Postgres | ver `04` — evita blobs pesados en BD |
+| Persistencia relacional | PostgreSQL (Neon en línea) | solo usuarios y actividad — ver `04` y `12` |
+| Almacenamiento de archivos | Ninguno | D-023: cada corrida devuelve el `.xlsx` sin guardarlo |
 | Frontend | Por definir (SPA servida por el propio backend, o React+Vite aparte) | **decisión abierta** — no bloquea Fase 0/1 |
 | Testing | JUnit | motor de parsing debe tener cobertura alta antes de tocar la capa web |
 
@@ -70,8 +70,8 @@ Excel de 18 hojas (una por cliente).
    plantilla activa.
 4. **Fase 3 — Web UI**: carga de plantilla, carga de BDs, resultado
    (matches / no encontrados / avisos / consistencia), descarga.
-5. **Fase 4 — Empaquetado**: jar ejecutable, perfiles `application.yml`
-   (local vs servidor), Docker si aplica.
+5. **Fase 4 — En línea** (spec 12): sin guardar datos de clientes,
+   usuarios con superadmin, registro de actividad, Render + Neon.
 
 ## Documentos de este paquete
 - `01-plantilla-mapeo-columnas.md` — estructura de la plantilla y diseño del
@@ -79,10 +79,12 @@ Excel de 18 hojas (una por cliente).
 - `02-parsers-bd-origen.md` — parsers de Alestra, Telcel y ATT.
 - `03-motor-coincidencia.md` — reglas de matching, reporte de no
   encontrados y validación de consistencia.
-- `04-modelo-datos-y-api.md` — entidades versionadas, endpoints REST,
-  almacenamiento y empaquetado.
+- `04-modelo-datos-y-api.md` — endpoints REST, base de datos y
+  empaquetado.
 - `11-fase3-ui.md` — pantalla web (Fase 3): decisiones, pantallas y
   checklist.
+- `12-fase4-despliegue.md` — Fase 4: sin datos de clientes, usuarios,
+  actividad y despliegue en Render + Neon.
 
 ## Casos borde documentados (con decisión tomada)
 - **ICCID vacío en la plantilla o en una BD de origen** → se excluye de la

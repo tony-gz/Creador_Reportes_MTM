@@ -1,30 +1,23 @@
-// Navegación por #hash entre las pantallas (spec 11).
+// Navegación por #hash entre las pantallas (spec 11 y 12).
 
 import { mostrarGenerar } from './vista-generar.js';
 import { mostrarPlantilla } from './vista-plantilla.js';
-import { mostrarHistorial, mostrarReporte } from './vista-historial.js';
 
 const contenido = document.getElementById('contenido');
 
 const VISTAS = {
   generar: () => mostrarGenerar(contenido),
   plantilla: () => mostrarPlantilla(contenido),
-  historial: () => mostrarHistorial(contenido),
 };
 
 function navegar() {
-  const ruta = location.hash.replace(/^#/, '') || 'generar';
-  const [nombre, id] = ruta.split('/');
-  const seccion = nombre === 'reporte' ? 'historial' : nombre;
+  const nombre = location.hash.replace(/^#/, '').split('/')[0] || 'generar';
+  const seccion = VISTAS[nombre] ? nombre : 'generar';
   for (const enlace of document.querySelectorAll('.navegacion a')) {
     if (enlace.dataset.vista === seccion) enlace.setAttribute('aria-current', 'page');
     else enlace.removeAttribute('aria-current');
   }
-  if (nombre === 'reporte' && id) {
-    mostrarReporte(contenido, id);
-  } else {
-    (VISTAS[nombre] ?? VISTAS.generar)();
-  }
+  VISTAS[seccion]();
   contenido.focus({ preventScroll: true });
   window.scrollTo(0, 0);
 }

@@ -17,18 +17,20 @@ App para automatizar los reportes mensuales de consumo de datos SIM de MTM.
   reportes, manejo de errores, servicio de reportes (genera el `.xlsx`, lo
   verifica y guarda el reporte final) y configuración por variables de
   entorno.
-  Los `.xlsx` se guardan en `SIMREPORTS_DATOS_DIR` (por defecto `./datos`,
-  excluida de git).
-- **Fase 3 — Web UI**: lista (spec 11). Pantallas para generar reportes,
-  administrar la plantilla e historial, servidas por la misma app en
-  `http://localhost:8080/`. Falta probar en un navegador los flujos con
-  clics.
+- **Fase 3 — Web UI**: lista (spec 11), servida por la misma app en
+  `http://localhost:8080/`.
+- **Fase 4 — En línea** (spec 12): en curso (1/7).
+  - Punto 1 hecho: la app **ya no guarda archivos ni datos de clientes**
+    (D-023). Cada corrida sube la plantilla y los 3 archivos, y devuelve el
+    `.xlsx`.
+  - Faltan: usuarios con superadmin, registro de actividad y despliegue en
+    Render + Neon.
 
 ## Cómo compilar y probar
 
 ```bash
 cd sim-reports
-./mvnw test   # 272 tests, 0 fallos
+./mvnw test   # 243 tests, 0 fallos
 ```
 
 `./mvnw` (Maven Wrapper) descarga Maven 3.9.16 la primera vez, verificando
@@ -49,7 +51,6 @@ variables de entorno** (no hay perfiles); los valores por defecto están en
 | `SIMREPORTS_DB_URL` | URL JDBC de PostgreSQL | `jdbc:postgresql://localhost:5432/sim_reports` |
 | `SIMREPORTS_DB_USER` | usuario de la base | `sim_reports` |
 | `SIMREPORTS_DB_PASSWORD` | contraseña de la base | `sim_reports` |
-| `SIMREPORTS_DATOS_DIR` | carpeta donde se guardan las plantillas y los reportes `.xlsx` | `./datos` |
 | `SERVER_PORT` | puerto HTTP (variable estándar de Spring Boot) | `8080` |
 
 ```bash
@@ -57,7 +58,6 @@ cd sim-reports
 ./mvnw package -DskipTests
 SIMREPORTS_DB_URL=jdbc:postgresql://localhost:5432/sim_reports \
 SIMREPORTS_DB_USER=sim_reports SIMREPORTS_DB_PASSWORD='***' \
-SIMREPORTS_DATOS_DIR=/ruta/a/datos \
 java -jar target/sim-reports-0.1.0-SNAPSHOT.jar
 ```
 
@@ -65,36 +65,21 @@ Con la app corriendo, la pantalla está en `http://localhost:8080/` (o el
 puerto de `SERVER_PORT`).
 
 El esquema lo crea Flyway al arrancar (`src/main/resources/db/migration`).
-En un servidor se usan las mismas variables (en el servicio de systemd, en
-Docker, etc.). La carpeta de datos contiene archivos reales de clientes:
-respáldala junto con la base, porque la base solo guarda las rutas.
+En un servidor se usan las mismas variables. La app no guarda archivos:
+descarga el reporte y guárdalo tú.
 
-### Endpoints de la plantilla
-
-Con la app corriendo (`./mvnw spring-boot:run`, puerto 8080):
+### Endpoints
 
 ```bash
-curl -F archivo=@plantilla.xlsx http://localhost:8080/api/plantilla   # subir una versión nueva
-curl http://localhost:8080/api/plantilla/mapeo                        # mapeo de la versión activa
-curl http://localhost:8080/api/plantilla/versiones                    # historial
-curl -X PUT -H 'Content-Type: application/json' \
-     -d '{"hoja":"GEPP","nombreTabla":"Tabla3","columnaPorCampoLogico":{"LINEA":"LINEA","CONSUMO(MB)":"CONSUMO(MB)"}}' \
-     http://localhost:8080/api/plantilla/mapeo                        # corregir el mapeo de una tabla
-```
-
-Si la plantilla tiene problemas, la respuesta es `400` con la lista
-completa en `problemas` (formato estándar `application/problem+json`).
-
-### Endpoints de reportes
-
-```bash
-curl -F anio=2026 -F mes=10 \
+curl -F plantilla=@CONSUMOS_SEPTIEMBRE_2026.xlsx \
+     http://localhost:8080/api/plantilla/revisar      # cómo lee la app la plantilla (no la guarda)
+curl -F anio=2026 -F mes=10 -F plantilla=@CONSUMOS_SEPTIEMBRE_2026.xlsx \
      -F alestra=@"Tráfico por línea.xlsx" -F telcel=@Uso_de_datos.csv -F att=@att.xlsx \
-     http://localhost:8080/api/reportes                               # generar (devuelve el detalle y el reporte final)
-curl http://localhost:8080/api/reportes                               # historial
-curl http://localhost:8080/api/reportes/1                             # detalle de una corrida
-curl -OJ http://localhost:8080/api/reportes/1/descargar               # descarga CONSUMOS_OCTUBRE_2026.xlsx
+     http://localhost:8080/api/reportes               # genera; el .xlsx viene en Base64 (xlsxBase64)
 ```
+
+Si algo tiene problemas, la respuesta es `400` con la lista completa en
+`problemas` (formato estándar `application/problem+json`).
 
 ## Documentación
 
@@ -106,6 +91,7 @@ motor de coincidencia, modelo de datos/API y el flujo de trabajo.
 octubre y lista las decisiones pendientes; `10-registro-decisiones.md`
 guarda las decisiones de negocio ya tomadas.
 `11-fase3-ui.md` describe la pantalla web y lleva su checklist.
+`12-fase4-despliegue.md` lleva la Fase 4 (en línea, usuarios, sin datos de clientes).
 
 Los archivos reales de clientes van en `archivos/` (raíz), que está en
 `.gitignore`: nunca se suben al repo.

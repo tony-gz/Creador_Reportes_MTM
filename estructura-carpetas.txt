@@ -13,11 +13,10 @@ sim-reports/
     │   │   └── com/
     │   │       └── simreports/
     │   │           ├── SimReportsApplication.java
-    │   │           ├── almacenamiento/
-    │   │           │   └── AlmacenamientoArchivos.java
     │   │           ├── core/
     │   │           │   ├── ArchivoFormatoInvalidoException.java
     │   │           │   ├── AvisoParseo.java
+    │   │           │   ├── ConsumoMb.java
     │   │           │   ├── HeaderResolver.java
     │   │           │   ├── NormalizadorClave.java
     │   │           │   ├── OrigenParser.java
@@ -71,29 +70,15 @@ sim-reports/
     │   │           │       ├── EscritorReporte.java
     │   │           │       └── ReporteEscrito.java
     │   │           ├── plantilla/
-    │   │           │   ├── CorreccionMapeoSolicitud.java
-    │   │           │   ├── MapeoPlantillaJson.java
-    │   │           │   ├── PlantillaActiva.java
-    │   │           │   ├── PlantillaConfig.java
-    │   │           │   ├── PlantillaConfigRepository.java
     │   │           │   ├── PlantillaController.java
-    │   │           │   ├── PlantillaParaReporte.java
-    │   │           │   ├── PlantillaRespuesta.java
-    │   │           │   ├── PlantillaService.java
-    │   │           │   ├── SinPlantillaActivaException.java
-    │   │           │   └── VersionPlantillaRespuesta.java
+    │   │           │   └── PlantillaService.java
     │   │           ├── reportes/
-    │   │           │   ├── ArchivoDescarga.java
     │   │           │   ├── ArchivoEntrada.java
     │   │           │   ├── Periodo.java
     │   │           │   ├── ReporteController.java
     │   │           │   ├── ReporteDescuadradoException.java
-    │   │           │   ├── ReporteDetalleRespuesta.java
-    │   │           │   ├── ReporteGenerado.java
-    │   │           │   ├── ReporteGeneradoRepository.java
-    │   │           │   ├── ReporteNoEncontradoException.java
+    │   │           │   ├── ReporteRespuesta.java
     │   │           │   ├── ReporteResultado.java
-    │   │           │   ├── ReporteResumenRespuesta.java
     │   │           │   └── ReporteService.java
     │   │           └── web/
     │   │               └── ManejadorErrores.java
@@ -102,22 +87,22 @@ sim-reports/
     │       ├── static/                      ← pantalla web (Fase 3, spec 11)
     │       │   ├── index.html
     │       │   ├── css/app.css
-    │       │   └── js/ (api, app, detalle, dom, formato, vista-generar, vista-historial, vista-plantilla)
+    │       │   └── js/ (api, app, detalle, dom, formato, vista-generar, vista-plantilla)
     │       └── db/
     │           └── migration/
     │               ├── V1__esquema_inicial.sql
-    │               └── V2__reporte_periodo_y_reporte_final.sql
+    │               ├── V2__reporte_periodo_y_reporte_final.sql
+    │               └── V3__sin_datos_de_clientes.sql
     └── test/
         ├── java/
         │   └── com/
         │       └── simreports/
         │           ├── PostgresEmbebido.java
-        │           ├── almacenamiento/
-        │           │   └── AlmacenamientoArchivosTest.java
         │           ├── web/
         │           │   └── PaginaWebTest.java
         │           ├── core/
         │           │   ├── AvisoParseoTest.java
+        │           │   ├── ConsumoMbTest.java
         │           │   ├── HeaderResolverNormalizarTest.java
         │           │   ├── NormalizadorClaveTest.java
         │           │   ├── ResultadoParseoTest.java
@@ -143,21 +128,18 @@ sim-reports/
         │           │   └── reporte/
         │           │       └── EscritorReporteTest.java
         │           ├── plantilla/
-        │           │   ├── MapeoPlantillaJsonTest.java
-        │           │   ├── PlantillaConfigRepositoryTest.java
-        │           │   ├── PlantillaControllerTest.java
-        │           │   └── PlantillaServiceTest.java
+        │           │   └── PlantillaControllerTest.java
         │           └── reportes/
         │               ├── ArchivosDePrueba.java
         │               ├── PeriodoTest.java
         │               ├── ReporteControllerTest.java
-        │               ├── ReporteGeneradoRepositoryTest.java
         │               └── ReporteServiceTest.java
         └── resources/
             └── application.yml
 
 ÚLTIMO RESULTADO CONOCIDO: ./mvnw test → BUILD SUCCESS, 266 tests, 0 fallos (2026-11-09).
 FASE 1 COMPLETA. FASE 2 COMPLETA (7/7). FASE 3: pantalla web lista (spec 11).
+FASE 4 (spec 12): punto 1 de 7 (la app ya no guarda archivos ni datos de clientes, D-023).
 
 NOTAS PARA OPENCODE
 - Crear/completar exactamente esta estructura (carpetas + los archivos

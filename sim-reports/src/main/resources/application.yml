@@ -3,11 +3,12 @@ spring:
     name: sim-reports
 
   # La plantilla pesa ~200 KB y los archivos de los operadores menos de 1 MB;
-  # el límite por defecto de Spring (1 MB) queda justo.
+  # el límite por defecto de Spring (1 MB) queda justo. Cada corrida sube los
+  # 4 archivos juntos (D-023).
   servlet:
     multipart:
       max-file-size: 20MB
-      max-request-size: 60MB
+      max-request-size: 80MB
 
   datasource:
     url: ${SIMREPORTS_DB_URL:jdbc:postgresql://localhost:5432/sim_reports}
@@ -29,9 +30,3 @@ spring:
     properties:
       hibernate:
         format_sql: true
-
-simreports:
-  almacenamiento:
-    # Carpeta donde se guardan las plantillas por versión y los reportes
-    # generados (spec 04). En Postgres solo va la ruta, relativa a esta carpeta.
-    directorio: ${SIMREPORTS_DATOS_DIR:./datos}

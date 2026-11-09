@@ -32,10 +32,10 @@ import java.util.TreeSet;
  * <ul>
  *   <li>{@link #detectar(InputStream)}, al subir una plantilla: encuentra y
  *       clasifica las tablas nativas de cada hoja de clientes y valida la
- *       plantilla. Devuelve el {@link MapeoPlantilla} que se persiste.</li>
- *   <li>{@link #leer(InputStream, MapeoPlantilla)}, al generar un reporte: lee
- *       las filas con un mapeo ya guardado (que el usuario pudo corregir a
- *       mano), sin volver a detectar.</li>
+ *       plantilla. Devuelve su {@link MapeoPlantilla}.</li>
+ *   <li>{@link #leer(InputStream, MapeoPlantilla)}: lee las filas con un mapeo
+ *       ya detectado. Desde D-023 (spec 12) la app no guarda la plantilla ni su
+ *       mapeo: en cada corrida detecta y lee.</li>
  * </ul>
  *
  * <p>Reglas:</p>
@@ -126,7 +126,7 @@ public final class LectorPlantilla {
     }
 
     /**
-     * Lee las filas de cada tabla con un mapeo ya guardado.
+     * Lee las filas de cada tabla con un mapeo ya detectado.
      *
      * @throws PlantillaInvalidaException si una hoja, tabla o columna del mapeo
      *         ya no existe en el archivo, o si un ICCID está guardado como número.

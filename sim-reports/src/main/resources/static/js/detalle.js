@@ -1,7 +1,7 @@
 // Detalle de un reporte generado (spec 11, pantalla 4). Recibe la respuesta de
-// POST /api/reportes o GET /api/reportes/{id}.
+// POST /api/reportes, que trae el .xlsx en Base64: la descarga sale del
+// navegador, el servidor no guarda nada (D-023).
 
-import { api } from './api.js';
 import { el, caja, tabla } from './dom.js';
 import { cantidad, fechaHora, fila, fuente, mb, periodo } from './formato.js';
 
@@ -17,14 +17,40 @@ export function vistaDetalle(d) {
     seccionTexto(d.reporteFinal ?? ''));
 }
 
+const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+/** Descarga un Blob con su nombre sin pasar por el servidor. */
+function descargar(blob, nombre) {
+  const url = URL.createObjectURL(blob);
+  const enlace = el('a', { href: url, download: nombre });
+  document.body.append(enlace);
+  enlace.click();
+  enlace.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function deBase64(texto) {
+  const binario = atob(texto);
+  const bytes = new Uint8Array(binario.length);
+  for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+  return bytes;
+}
+
 function encabezado(d) {
+  const nombreTexto = d.nombreArchivo.replace(/\.xlsx$/i, '_reporte_final.txt');
   return el('section', { class: 'tarjeta' },
     el('div', { class: 'encabezado-detalle' },
       el('div', {},
         el('h2', {}, d.nombreArchivo),
         el('p', { class: 'subtitulo' },
-          `Periodo ${periodo(d.periodoAnio, d.periodoMes)} · generado ${fechaHora(d.fecha)} · plantilla v${d.versionPlantilla}`)),
-      el('a', { class: 'boton', href: api.urlDescarga(d.id), download: d.nombreArchivo }, 'Descargar .xlsx')));
+          `Periodo ${periodo(d.periodoAnio, d.periodoMes)} · generado ${fechaHora(d.fecha)}`)),
+      el('div', { class: 'acciones' },
+        el('button', { type: 'button', class: 'boton',
+          onclick: () => descargar(new Blob([deBase64(d.xlsxBase64)], { type: XLSX }), d.nombreArchivo) },
+        'Descargar .xlsx'),
+        el('button', { type: 'button', class: 'boton boton-secundario',
+          onclick: () => descargar(new Blob([d.reporteFinal ?? ''], { type: 'text/plain;charset=utf-8' }), nombreTexto) },
+        'Descargar reporte final (.txt)'))));
 }
 
 function seccionTotales(totales, advertencias) {

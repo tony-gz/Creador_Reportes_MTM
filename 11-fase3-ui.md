@@ -56,6 +56,14 @@
 
 **Entregado:** 2026-11-09. **`./mvnw test`: 266/266 OK.**
 
+> **Actualizado por D-023 (spec 12):**
+> - "Plantilla" pasó a ser "Revisar plantilla": no guarda nada y no corrige
+>   el mapeo.
+> - "Generar" pide también la plantilla.
+> - El historial se quitó.
+> - El detalle descarga el `.xlsx` y el reporte final (`.txt`) desde el
+>   navegador.
+
 ## Notas de la entrega (2026-11-09)
 - **Archivos:** `static/index.html`, `css/app.css` y los módulos de `js/`:
   - `api.js`: cliente de la API y `ErrorApi`;

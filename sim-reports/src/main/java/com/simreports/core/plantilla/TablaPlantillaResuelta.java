@@ -23,8 +23,8 @@ import java.util.Objects;
  *                                ej. {@code SIM}, {@code SERIE}, o
  *                                {@code CONSUMO_TOTAL} en tablas dual
  *                                SIM, que se recalcula y nunca se lee).
- *                                No bloquea el proceso — se persiste en
- *                                el mapeo para revisión manual en la UI
+ *                                No bloquea el proceso — va en el mapeo
+ *                                para revisarlo en la UI
  *                                (spec 01, sección "Persistencia del
  *                                mapeo").
  */

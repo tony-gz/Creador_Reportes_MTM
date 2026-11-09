@@ -20,7 +20,7 @@ const TIPOS = {
 };
 export const tipoTabla = (tipo) => TIPOS[tipo] ?? tipo;
 
-const FUENTES = { ALESTRA: 'Alestra', TELCEL_ATT: 'Telcel + ATT', TELCEL: 'Telcel', ATT: 'ATT' };
+const FUENTES = { PLANTILLA: 'Plantilla', ALESTRA: 'Alestra', TELCEL_ATT: 'Telcel + ATT', TELCEL: 'Telcel', ATT: 'ATT' };
 export const fuente = (clave) => FUENTES[clave] ?? clave;
 
 /** "fila 13", o "fila 12 (LINEA_2)" para la segunda línea de un router. */

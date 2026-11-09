@@ -1,53 +1,25 @@
 package com.simreports.reportes;
 
-import com.simreports.PostgresEmbebido;
 import com.simreports.core.ArchivoFormatoInvalidoException;
-import com.simreports.plantilla.PlantillaConfigRepository;
+import com.simreports.core.plantilla.PlantillaInvalidaException;
 import com.simreports.plantilla.PlantillaService;
-import com.simreports.plantilla.SinPlantillaActivaException;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Corrida completa contra la app (Postgres embebido real), sin @Transactional de prueba. */
-@SpringBootTest
-class ReporteServiceTest extends PostgresEmbebido {
+/** Servicio de reportes sin estado (D-023): no necesita base de datos ni disco. */
+class ReporteServiceTest {
 
-    @TempDir
-    static Path datos;
+    private final ReporteService servicio = new ReporteService(new PlantillaService());
 
-    @DynamicPropertySource
-    static void carpetaDeDatos(DynamicPropertyRegistry registro) {
-        registro.add("simreports.almacenamiento.directorio", () -> datos.toString());
-    }
-
-    @Autowired
-    private ReporteService servicio;
-    @Autowired
-    private PlantillaService plantillas;
-    @Autowired
-    private ReporteGeneradoRepository reportes;
-    @Autowired
-    private PlantillaConfigRepository versiones;
-
-    @AfterEach
-    void limpiar() {
-        reportes.deleteAll();
-        versiones.deleteAll();
+    private static ArchivoEntrada plantilla() {
+        return new ArchivoEntrada("CONSUMOS_SEPTIEMBRE_2026.xlsx", ArchivosDePrueba.plantilla());
     }
 
     private static ArchivoEntrada alestra() {
@@ -63,26 +35,17 @@ class ReporteServiceTest extends PostgresEmbebido {
     }
 
     @Test
-    void generaElReporteLoGuardaYRegistraLaCorrida() throws IOException {
-        plantillas.registrarNuevaVersion(ArchivosDePrueba.plantilla());
+    void generaElReporteEnMemoriaConSuReporteFinal() throws IOException {
+        ReporteResultado r = servicio.generar(new Periodo(2026, 10), plantilla(), alestra(), telcel(), att());
 
-        ReporteResultado r = servicio.generar(new Periodo(2026, 10), alestra(), telcel(), att());
-
-        ReporteGenerado registro = r.reporte();
-        assertThat(registro.getId()).isNotNull();
-        assertThat(registro.getNombreArchivo()).isEqualTo("CONSUMOS_OCTUBRE_2026.xlsx");
-        assertThat(registro.getPeriodoAnio()).isEqualTo(2026);
-        assertThat(registro.getPeriodoMes()).isEqualTo(10);
-        assertThat(registro.getRutaArchivoResultado()).startsWith("reportes").endsWith("CONSUMOS_OCTUBRE_2026.xlsx");
-        assertThat(registro.getArchivosEntrada()).contains("\"fuente\":\"ALESTRA\"", "Tráfico por línea.xlsx", "sha256");
-        assertThat(registro.getLineasNoEncontradas()).contains("5599999999");
-        assertThat(registro.getAvisos()).contains("\"totales\"", "\"simsRepetidas\"");
-        assertThat(registro.getReporteFinal()).startsWith("REPORTE FINAL DE LA CORRIDA")
-                .contains("ALESTRA: 1 líneas, 3.00 MB");
+        assertThat(r.nombreArchivo()).isEqualTo("CONSUMOS_OCTUBRE_2026.xlsx");
+        assertThat(r.reporteFinal()).startsWith("REPORTE FINAL DE LA CORRIDA").contains("ALESTRA: 1 líneas, 3.00 MB");
         assertThat(r.resultado().totalAsignado()).isEqualTo(107.75);
+        assertThat(r.archivosEntrada()).extracting(ReporteResultado.ArchivoUsado::fuente)
+                .containsExactly("PLANTILLA", "ALESTRA", "TELCEL", "ATT");
+        assertThat(r.archivosEntrada().get(1).nombre()).isEqualTo("Tráfico por línea.xlsx");
 
-        byte[] archivo = Files.readAllBytes(datos.resolve(registro.getRutaArchivoResultado()));
-        try (XSSFWorkbook libro = new XSSFWorkbook(new ByteArrayInputStream(archivo))) {
+        try (XSSFWorkbook libro = new XSSFWorkbook(new ByteArrayInputStream(r.contenido()))) {
             assertThat(libro.getNumberOfSheets()).isEqualTo(1);
             XSSFSheet gepp = libro.getSheet("GEPP");
             assertThat(gepp.getRow(1).getCell(3).getNumericCellValue()).isEqualTo(100.5);
@@ -91,32 +54,19 @@ class ReporteServiceTest extends PostgresEmbebido {
     }
 
     @Test
-    void unArchivoDeOperadorInvalidoDiceCualEsYNoGuardaNada() throws IOException {
-        plantillas.registrarNuevaVersion(ArchivosDePrueba.plantilla());
-        long archivosAntes = contarReportesEnDisco();
+    void unArchivoDeOperadorInvalidoDiceCualEs() {
         ArchivoEntrada telcelMalo = new ArchivoEntrada("tabla dinamica.csv", ArchivosDePrueba.telcelTablaDinamica());
 
-        assertThatThrownBy(() -> servicio.generar(new Periodo(2026, 10), alestra(), telcelMalo, att()))
+        assertThatThrownBy(() -> servicio.generar(new Periodo(2026, 10), plantilla(), alestra(), telcelMalo, att()))
                 .isInstanceOf(ArchivoFormatoInvalidoException.class)
                 .hasMessageStartingWith("Archivo de Telcel ('tabla dinamica.csv'): ");
-
-        assertThat(reportes.findAll()).isEmpty();
-        assertThat(contarReportesEnDisco()).isEqualTo(archivosAntes);
-    }
-
-    private static long contarReportesEnDisco() throws IOException {
-        Path carpeta = datos.resolve("reportes");
-        if (!Files.exists(carpeta)) {
-            return 0;
-        }
-        try (var archivos = Files.walk(carpeta)) {
-            return archivos.filter(Files::isRegularFile).count();
-        }
     }
 
     @Test
-    void sinPlantillaActivaNoSeGeneraReporte() {
-        assertThatThrownBy(() -> servicio.generar(new Periodo(2026, 10), alestra(), telcel(), att()))
-                .isInstanceOf(SinPlantillaActivaException.class);
+    void unaPlantillaInvalidaNoGeneraReporte() {
+        ArchivoEntrada vacia = new ArchivoEntrada("vacia.xlsx", new byte[0]);
+
+        assertThatThrownBy(() -> servicio.generar(new Periodo(2026, 10), vacia, alestra(), telcel(), att()))
+                .isInstanceOf(PlantillaInvalidaException.class);
     }
 }

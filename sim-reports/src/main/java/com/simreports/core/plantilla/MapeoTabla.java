@@ -6,10 +6,9 @@ import java.util.Objects;
 
 /**
  * Mapeo de una tabla nativa de la plantilla (spec 01): dónde está y qué
- * encabezado real corresponde a cada campo lógico. Es lo que se persiste
- * por versión en {@code PlantillaConfig.mapeoColumnas} (spec 04) y lo que se
- * puede corregir a mano; al generar un reporte, las filas se leen con este
- * mapeo, no se vuelve a detectar.
+ * encabezado real corresponde a cada campo lógico. Es lo que muestra
+ * "Revisar plantilla" y con lo que se leen las filas al generar un reporte.
+ * No se guarda (D-023, spec 12).
  *
  * @param hoja                     nombre de la hoja, tal cual (puede tener
  *                                 espacios al final, p. ej. {@code "PETCO "}).
